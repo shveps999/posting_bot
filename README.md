@@ -188,17 +188,18 @@ events_bot/
 └── README.md               # Документация
 ```
 
-````
 - **Уведомления** - Автоматическая рассылка после одобрения
 
 ## API Основных Классов
 
 ### UserService (асинхронный)
+
 - `register_user()` - Регистрация пользователя
 - `select_categories()` - Выбор категорий
 - `get_user_categories()` - Получение категорий пользователя
 
 ### PostService (асинхронный)
+
 - `create_post()` - Создание поста
 - `get_user_posts()` - Посты пользователя
 - `get_posts_by_categories()` - Посты по нескольким категориям
@@ -206,14 +207,17 @@ events_bot/
 - `reject_post()` - Отклонение поста
 
 ### CategoryService (асинхронный)
+
 - `get_all_categories()` - Все категории
 - `get_category_by_id()` - Категория по ID
 
 ### ModerationService (асинхронный)
+
 - `get_moderation_queue()` - Очередь модерации
 - `format_post_for_moderation()` - Форматирование для модерации
 
 ### NotificationService (асинхронный)
+
 - `get_users_to_notify()` - Пользователи для уведомления (по городу и категории)
 - `format_post_notification()` - Форматирование уведомления
 
@@ -224,6 +228,7 @@ events_bot/
 - `MODERATION_GROUP_ID` - ID группы для модерации (обязательно)
 
 ### AWS S3 (при наличии данных авторизации)
+
 - `S3_BUCKET_NAME` - Имя S3 bucket
 - `AWS_ACCESS_KEY_ID` - AWS Access Key ID
 - `AWS_SECRET_ACCESS_KEY` - AWS Secret Access Key
@@ -231,6 +236,7 @@ events_bot/
 - `S3_ENDPOINT_URL` - URL эндпоинта (для совместимых сервисов)
 
 ### LocalStack (для разработки)
+
 - `S3_BUCKET_NAME` - Имя S3 bucket (по умолчанию events-bot-uploads)
 - `AWS_ACCESS_KEY_ID` - Тестовый ключ (по умолчанию test)
 - `AWS_SECRET_ACCESS_KEY` - Тестовый секрет (по умолчанию test)
@@ -246,16 +252,19 @@ events_bot/
 ## Файловое Хранилище
 
 ### Локальное хранилище (разработка)
+
 - Файлы сохраняются в папку `uploads/`
 - Подходит для разработки и тестирования
 
 ### S3 хранилище (при наличии данных авторизации)
+
 - Файлы сохраняются в AWS S3
 - Поддерживает временные URL для прямого доступа
 - Автоматически выбирается при наличии переменных `S3_BUCKET_NAME`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
 - Fallback на локальное хранилище при ошибках конфигурации
 
 ### LocalStack (разработка)
+
 - Локальная эмуляция AWS S3 для разработки
 - Полная совместимость с AWS S3 API
 - Не требует реальных AWS учетных данных
@@ -277,7 +286,7 @@ class User(Base, TimestampMixin):
 
     # Типизированные связи
     posts: Mapped[List["Post"]] = relationship(back_populates="author")
-````
+```
 
 ## Запуск Бота
 
@@ -408,13 +417,95 @@ docker exec events_bot_localstack ./aws/check-buckets.sh
   docker-compose down
   ```
 
-### Совместимость
+## Новый алгоритм запуска
 
-Команды работают как с Docker, так и с Podman:
+### 1. Подготовка окружения
 
-- `docker-compose` → `podman-compose`
-- `docker build` → `podman build`
-- `docker run` → `podman run`
+1. Убедитесь, что у вас установлен Python версии 3.12 или выше.
+2. Клонируйте репозиторий с GitHub:
+   ```bash
+   git clone https://github.com/Levin-Alexey/posting_bot.git
+   ```
+3. Перейдите в директорию проекта:
+   ```bash
+   cd posting_bot
+   ```
+
+### 2. Настройка виртуального окружения
+
+1. Создайте виртуальное окружение:
+   ```bash
+   python3 -m venv .venv
+   ```
+2. Активируйте виртуальное окружение:
+   ```bash
+   source .venv/bin/activate
+   ```
+3. Установите зависимости:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+### 3. Настройка переменных окружения
+
+1. Скопируйте файл `.env.example` в `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+2. Отредактируйте файл `.env`, указав актуальные значения:
+   ```bash
+   nano .env
+   ```
+
+### 4. Запуск бота
+
+1. Убедитесь, что виртуальное окружение активировано.
+2. Запустите бота:
+   ```bash
+   python main.py
+   ```
+
+### 5. Настройка службы для автоматического перезапуска
+
+1. Создайте файл службы systemd:
+   ```bash
+   sudo nano /etc/systemd/system/bot.service
+   ```
+2. Добавьте следующий код:
+
+   ```ini
+   [Unit]
+   Description=Telegram Bot Service
+   After=network.target
+
+   [Service]
+   User=root
+   WorkingDirectory=/root/posting_bot
+   ExecStart=/root/posting_bot/.venv/bin/python main.py
+   Restart=always
+   RestartSec=5
+   EnvironmentFile=/root/posting_bot/.env
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+3. Перезагрузите systemd:
+   ```bash
+   sudo systemctl daemon-reload
+   ```
+4. Включите службу для автозапуска:
+   ```bash
+   sudo systemctl enable bot.service
+   ```
+5. Запустите службу:
+   ```bash
+   sudo systemctl start bot.service
+   ```
+6. Проверьте статус службы:
+   ```bash
+   sudo systemctl status bot.service
+   ```
 
 ## Производительность
 
