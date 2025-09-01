@@ -21,7 +21,13 @@ class PostRepository:
         image_id: str | None = None,
         event_at: datetime | None = None,
     ) -> Post:
-        # Создаем пост
+        # Получаем объекты категорий
+        categories_result = await db.execute(
+            select(Category).where(Category.id.in_(category_ids))
+        )
+        category_objs = categories_result.scalars().all()
+
+        # Создаем пост с категориями
         post = Post(
             title=title,
             content=content,
@@ -29,19 +35,11 @@ class PostRepository:
             city=city,
             image_id=image_id,
             event_at=event_at,
+            categories=category_objs,
         )
         db.add(post)
         await db.commit()
-        
-        # Добавляем категории к посту в отдельной транзакции
-        await db.execute(
-            insert(post_categories).values(
-                [{'post_id': post.id, 'category_id': category} for category in category_ids]
-            )
-        )
-        await db.commit()
         await db.refresh(post)
-        
         return post
 
     @staticmethod
@@ -73,6 +71,7 @@ class PostRepository:
     ) -> List[Post]:
         result = await db.execute(
             select(Post)
+            .distinct()
             .join(Post.categories)
             .where(
                 and_(
@@ -188,13 +187,14 @@ class PostRepository:
         user = user_categories_result.scalar_one_or_none()
         if not user or not user.categories:
             return []
-        
+
         category_ids = [cat.id for cat in user.categories]
-        
+
         # Получаем посты по категориям пользователя, исключая его собственные
         now_utc = func.now()
         result = await db.execute(
             select(Post)
+            .distinct()
             .join(Post.categories)
             .where(
                 and_(
@@ -223,9 +223,9 @@ class PostRepository:
         user = user_categories_result.scalar_one_or_none()
         if not user or not user.categories:
             return 0
-        
+
         category_ids = [cat.id for cat in user.categories]
-        
+
         # Подсчитываем количество постов
         result = await db.execute(
             select(func.count(Post.id))
@@ -246,6 +246,7 @@ class PostRepository:
         db: AsyncSession, user_id: int, limit: int = 10, offset: int = 0
     ) -> List[Post]:
         from ..models import Like
+
         result = await db.execute(
             select(Post)
             .join(Like, Like.post_id == Post.id)
@@ -267,6 +268,7 @@ class PostRepository:
     @staticmethod
     async def get_liked_posts_count(db: AsyncSession, user_id: int) -> int:
         from ..models import Like
+
         result = await db.execute(
             select(func.count(Post.id))
             .join(Like, Like.post_id == Post.id)
@@ -285,29 +287,30 @@ class PostRepository:
     async def delete_expired_posts(db: AsyncSession) -> int:
         """Удалить посты, у которых наступило event_at, вместе со связями"""
         from ..models import Like, ModerationRecord
+
         # Ищем просроченные посты
         expired_posts = await db.execute(
-            select(Post.id).where(Post.event_at.is_not(None), Post.event_at <= func.now())
+            select(Post.id).where(
+                Post.event_at.is_not(None), Post.event_at <= func.now()
+            )
         )
         post_ids = [pid for pid in expired_posts.scalars().all()]
         if not post_ids:
             return 0
         # Удаляем связанные лайки
-        await db.execute(
-            Like.__table__.delete().where(Like.post_id.in_(post_ids))
-        )
+        await db.execute(Like.__table__.delete().where(Like.post_id.in_(post_ids)))
         # Удаляем записи модерации
         await db.execute(
-            ModerationRecord.__table__.delete().where(ModerationRecord.post_id.in_(post_ids))
+            ModerationRecord.__table__.delete().where(
+                ModerationRecord.post_id.in_(post_ids)
+            )
         )
         # Удаляем связи постов с категориями
         await db.execute(
             post_categories.delete().where(post_categories.c.post_id.in_(post_ids))
         )
         # Удаляем сами посты
-        result = await db.execute(
-            Post.__table__.delete().where(Post.id.in_(post_ids))
-        )
+        result = await db.execute(Post.__table__.delete().where(Post.id.in_(post_ids)))
         await db.commit()
         return result.rowcount or 0
 
