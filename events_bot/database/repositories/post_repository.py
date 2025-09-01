@@ -227,8 +227,10 @@ class PostRepository:
         category_ids = [cat.id for cat in user.categories]
 
         # Подсчитываем количество постов
+        from sqlalchemy import distinct
+
         result = await db.execute(
-            select(func.count(Post.id))
+            select(func.count(distinct(Post.id)))
             .join(Post.categories)
             .where(
                 and_(
