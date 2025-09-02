@@ -7,7 +7,6 @@ from sqlalchemy import (
     Table,
     func,
     Column,
-    Integer,
     BigInteger,
     UniqueConstraint,
 )
@@ -85,7 +84,12 @@ class Category(Base, TimestampMixin):
     __tablename__ = "categories"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(
+        String(100), unique=True, nullable=False
+    )  # Чистое название без эмодзи
+    display_name: Mapped[Optional[str]] = mapped_column(
+        String(255), nullable=True
+    )  # Название с эмодзи для UI
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
@@ -113,7 +117,8 @@ class Post(Base, TimestampMixin):
     is_approved: Mapped[bool] = mapped_column(Boolean, default=False)
     is_published: Mapped[bool] = mapped_column(Boolean, default=False)
     published_at: Mapped[Optional[DateTime]] = mapped_column(DateTime, nullable=True)
-    # Дата и время события/актуальности поста. После наступления этого времени пост скрывается и удаляется
+    # Дата и время события/актуальности поста.
+    # После наступления этого времени пост скрывается и удаляется
     event_at: Mapped[Optional[DateTime]] = mapped_column(DateTime, nullable=True)
 
     # Связи
@@ -136,7 +141,7 @@ class ModerationRecord(Base, TimestampMixin):
     moderator_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     action: Mapped[str] = mapped_column(
         String(20), nullable=False
-    )  # 'approve', 'reject', 'request_changes'
+    )  # approve, reject, request_changes
     comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Связи

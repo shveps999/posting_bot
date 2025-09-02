@@ -30,56 +30,45 @@ def get_category_selection_keyboard(
     # Используем разные префиксы для разных контекстов
     prefix = "post_category_" if for_post else "category_"
 
-    # Создаем кнопки с правильным выравниванием эмодзи
+    # Создаем кнопки с правильным выравниванием
     from events_bot.utils import visual_len
 
-    BUTTON_WIDTH = 18  # Фиксированная визуальная ширина кнопки
+    MAX_NAME_LENGTH = 20  # Максимальная длина названия
+    TOTAL_WIDTH = 25      # Общая ширина кнопки
 
     for category in categories:
         is_selected = category.id in selected_ids
-        checkbox = "⭐️" if is_selected else "⬜"
+        checkbox = "✅" if is_selected else "☐"
 
-        name = category.name
-        name_len = visual_len(name)  # Визуальная длина без учета эмодзи
-
-        # Если название слишком длинное, обрезаем
-        if name_len > BUTTON_WIDTH - 3:
-            # Нужно аккуратно обрезать с учетом эмодзи
+        # Используем display_name для UI (с эмодзи), fallback на name
+        display_name = getattr(category, "display_name", None) or category.name
+        
+        # Обрезаем название если слишком длинное
+        if visual_len(display_name) > MAX_NAME_LENGTH:
+            # Обрезаем с учетом эмодзи
             import re
-
-            # Разделяем эмодзи и текст
-            parts = re.split(
-                r"([\U0001F000-\U0001F9FF\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF\u2600-\u26FF\u2700-\u27BF]+)",
-                name,
-            )
-
-            new_name = ""
-            current_len = 0
-            for part in parts:
-                part_len = (
-                    len(part)
-                    if re.match(
-                        r"[\U0001F000-\U0001F9FF\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF\u2600-\u26FF\u2700-\u27BF]+",
-                        part,
-                    )
-                    else len(part)
-                )
-                if current_len + part_len <= BUTTON_WIDTH - 4:  # -4 для "…" и чекбокса
-                    new_name += part
-                    current_len += part_len
+            
+            clean_length = 0
+            result = ""
+            for char in display_name:
+                if re.match(r'[\U0001F000-\U0001F9FF\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF\u2600-\u26FF\u2700-\u27BF]', char):
+                    # Эмодзи не считаем в длину
+                    result += char
                 else:
-                    if current_len < BUTTON_WIDTH - 4:
-                        remaining = BUTTON_WIDTH - 4 - current_len
-                        new_name += part[:remaining] + "…"
-                    break
-            name = new_name
-            name_len = visual_len(name)
+                    if clean_length < MAX_NAME_LENGTH - 1:
+                        result += char
+                        clean_length += 1
+                    else:
+                        result += "…"
+                        break
+            display_name = result
 
-        # Добавляем точки для выравнивания чекбокса справа
-        dots_count = BUTTON_WIDTH - name_len - 2  # -2 для пробела и чекбокса
-        dots = "·" * max(0, dots_count)
-
-        text = f"{name} {dots}{checkbox}"
+        # Выравниваем: название слева, чекбокс справа
+        name_visual_len = visual_len(display_name)
+        spaces_count = TOTAL_WIDTH - name_visual_len - 1  # -1 для чекбокса
+        spaces = " " * max(1, spaces_count)
+        
+        text = f"{display_name}{spaces}{checkbox}"
         builder.button(text=text, callback_data=f"{prefix}{category.id}")
     builder.adjust(2)
 

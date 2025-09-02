@@ -56,6 +56,7 @@ async def confirm_categories_selection(callback: CallbackQuery, state: FSMContex
     # Получаем названия выбранных категорий
     categories = await CategoryService.get_all_categories(db)
     selected_categories = [cat for cat in categories if cat.id in selected_ids]
+    # Используем чистые названия (name) для текста подтверждения
     category_names = ", ".join([cat.name for cat in selected_categories])
 
     await callback.message.edit_text(
