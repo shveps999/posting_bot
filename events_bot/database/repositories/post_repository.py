@@ -291,11 +291,15 @@ class PostRepository:
     async def delete_expired_posts(db: AsyncSession) -> int:
         """Удалить посты, у которых наступило event_at, вместе со связями"""
         from ..models import Like, ModerationRecord
+        from datetime import datetime, timezone
 
+        # Получаем текущее время в UTC для корректного сравнения
+        current_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+        
         # Ищем просроченные посты
         expired_posts = await db.execute(
             select(Post.id).where(
-                Post.event_at.is_not(None), Post.event_at <= func.now()
+                Post.event_at.is_not(None), Post.event_at <= current_utc
             )
         )
         post_ids = [pid for pid in expired_posts.scalars().all()]
@@ -321,9 +325,14 @@ class PostRepository:
     @staticmethod
     async def get_expired_posts_info(db: AsyncSession) -> list[dict]:
         """Вернуть информацию о просроченных постах (id, image_id)"""
+        from datetime import datetime, timezone
+        
+        # Получаем текущее время в UTC для корректного сравнения
+        current_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+        
         result = await db.execute(
             select(Post.id, Post.image_id).where(
-                and_(Post.event_at.is_not(None), Post.event_at <= func.now())
+                and_(Post.event_at.is_not(None), Post.event_at <= current_utc)
             )
         )
         rows = result.all()

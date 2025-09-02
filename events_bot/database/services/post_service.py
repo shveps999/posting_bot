@@ -32,15 +32,14 @@ class PostService:
             try:
                 from zoneinfo import ZoneInfo
 
-                msk = ZoneInfo("Europe/Moscow")
                 parsed_event_at = datetime.fromisoformat(event_at)
-                # Если время без tzinfo, считаем что оно в МСК
-                if parsed_event_at.tzinfo is None:
-                    parsed_event_at = parsed_event_at.replace(tzinfo=msk)
-                # Переводим в UTC и убираем tzinfo для хранения
-                parsed_event_at = parsed_event_at.astimezone(timezone.utc).replace(
-                    tzinfo=None
-                )
+                # Если время уже в UTC (как должно быть после обработчика), просто убираем tzinfo
+                if parsed_event_at.tzinfo is not None:
+                    parsed_event_at = parsed_event_at.astimezone(timezone.utc).replace(
+                        tzinfo=None
+                    )
+                # Если время без tzinfo, то оно уже должно быть в UTC
+                # (так как обработчик переводит в UTC перед сохранением в ISO)
             except Exception:
                 parsed_event_at = None
         return await PostRepository.create_post(
