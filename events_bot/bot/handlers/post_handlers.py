@@ -191,7 +191,8 @@ async def process_post_url(message: Message, state: FSMContext, db):
     await message.answer(
         "⏰ Введите дату и время события в формате ДД.ММ.ГГГГ ЧЧ:ММ (например, 25.12.2025 18:30)\n\n"
         "🕐 Время указывайте по московскому часовому поясу (МСК)\n"
-        "📝 После наступления этого времени пост будет скрыт из ленты и удалён."
+        "⚠️ Время должно быть в будущем!\n"
+        "📝 После наступления этого времени пост будет скрыт из ленты и удалён."тянеться 
     )
     await state.set_state(PostStates.waiting_for_event_datetime)
 
@@ -209,6 +210,21 @@ async def process_event_datetime(message: Message, state: FSMContext, db):
     for fmt in ("%d.%m.%Y %H:%M", "%d.%m.%Y %H.%M"):
         try:
             event_dt = datetime.strptime(text, fmt)
+            
+            # Проверяем что время не в прошлом (сравниваем в МСК)
+            current_msk = datetime.now()
+            if ZoneInfo is not None:
+                msk = ZoneInfo("Europe/Moscow")
+                current_msk = datetime.now(msk).replace(tzinfo=None)
+            
+            if event_dt <= current_msk:
+                await message.answer(
+                    "❌ Время события не может быть в прошлом!\n"
+                    f"Сейчас: {current_msk.strftime('%d.%m.%Y %H:%M')} (МСК)\n"
+                    "Выберите время в будущем."
+                )
+                return
+            
             # Считаем введённое время в часовом поясе МСК
             if ZoneInfo is not None:
                 msk = ZoneInfo("Europe/Moscow")
