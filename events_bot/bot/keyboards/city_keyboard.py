@@ -5,9 +5,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 def get_city_keyboard(for_post: bool = False, selected_cities: list = None) -> InlineKeyboardMarkup:
     """Инлайн-клавиатура для выбора городов"""
     cities = [
-        "Москва", "Санкт-Петербург", "Новосибирск", "Екатеринбург",
-        "Казань", "Нижний Новгород", "Челябинск", "Самара",
-        "Уфа", "Ростов-на-Дону"
+        "Москва", "Санкт-Петербург"
     ]
     
     if selected_cities is None:
@@ -22,7 +20,7 @@ def get_city_keyboard(for_post: bool = False, selected_cities: list = None) -> I
     if for_post:
         for city in cities:
             is_selected = city in selected_cities
-            checkbox = "⭐" if is_selected else "⬜"
+            checkbox = "⭐" if is_selected else "▫️"
             text = f"{city} {checkbox}"
             builder.button(text=text, callback_data=f"{prefix}{city}")
         builder.adjust(2)
@@ -30,19 +28,11 @@ def get_city_keyboard(for_post: bool = False, selected_cities: list = None) -> I
         # Добавляем специальные кнопки для постов
         special_buttons = []
         
-        # Кнопка "Выбрать все города"
-        special_buttons.append(
-            InlineKeyboardButton(
-                text="🌍 Выбрать все города", 
-                callback_data="post_city_select_all"
-            )
-        )
-        
         # Кнопка подтверждения (только если есть выбранные города)
         if selected_cities:
             special_buttons.append(
                 InlineKeyboardButton(
-                    text="✅ Подтвердить", 
+                    text="Подтвердить", 
                     callback_data="post_city_confirm"
                 )
             )
