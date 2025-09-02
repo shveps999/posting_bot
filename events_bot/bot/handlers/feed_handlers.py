@@ -163,21 +163,7 @@ async def show_feed_page(callback: CallbackQuery, page: int, db):
 def _msk_str(dt) -> str:
     if not dt:
         return ""
-    # event_at хранится как наивное UTC; при показе переводим в МСК
-    try:
-        if ZoneInfo:
-            msk = ZoneInfo("Europe/Moscow")
-            dt = dt.replace(tzinfo=timezone.utc).astimezone(msk)
-        else:
-            # Если ZoneInfo недоступен, добавляем 3 часа к UTC времени
-            from datetime import timedelta
-
-            dt = dt + timedelta(hours=3)
-    except Exception:
-        # Fallback: просто добавляем 3 часа
-        from datetime import timedelta
-
-        dt = dt + timedelta(hours=3)
+    # event_at теперь хранится в МСК, показываем как есть
     return dt.strftime("%d.%m.%Y %H:%M")
 
 
