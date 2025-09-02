@@ -93,6 +93,7 @@ class UserRepository:
         """Получить пользователей по городу и категориям"""
         result = await db.execute(
             select(User)
+            .distinct()
             .join(User.categories)
             .where(and_(User.city == city, Category.id.in_(category_ids)))
             .options(selectinload(User.categories))
