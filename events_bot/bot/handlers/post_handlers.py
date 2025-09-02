@@ -12,6 +12,7 @@ from events_bot.bot.keyboards import (
 )
 from events_bot.storage import file_storage
 from loguru import logger
+from datetime import timezone
 
 router = Router()
 
@@ -212,6 +213,11 @@ async def process_event_datetime(message: Message, state: FSMContext, db):
                 msk = ZoneInfo("Europe/Moscow")
                 utc = ZoneInfo("UTC")
                 event_dt = event_dt.replace(tzinfo=msk).astimezone(utc)
+            else:
+                # Fallback: если ZoneInfo недоступен, вручную вычитаем 3 часа
+                from datetime import timedelta
+                event_dt = event_dt - timedelta(hours=3)
+                event_dt = event_dt.replace(tzinfo=timezone.utc)
             # Сохраняем в ISO (с таймзоной +00:00)
             await state.update_data(event_at=event_dt.isoformat())
             await message.answer(
