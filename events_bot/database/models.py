@@ -34,10 +34,10 @@ class TimestampMixin:
     """Миксин для добавления полей времени создания и обновления"""
 
     created_at: Mapped[DateTime] = mapped_column(
-        DateTime, default=utc_now, nullable=False
+        DateTime, default=func.now(), nullable=False
     )
     updated_at: Mapped[DateTime] = mapped_column(
-        DateTime, default=utc_now, onupdate=utc_now, nullable=False
+        DateTime, default=func.now(), onupdate=func.now(), nullable=False
     )
 
 

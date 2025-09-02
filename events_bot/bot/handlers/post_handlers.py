@@ -232,15 +232,8 @@ async def process_event_datetime(message: Message, state: FSMContext, db):
                 )
                 return
 
-            # Считаем введённое время в часовом поясе МСК
-            if ZoneInfo is not None:
-                msk = ZoneInfo("Europe/Moscow")
-                utc = ZoneInfo("UTC")
-                event_dt = event_dt.replace(tzinfo=msk).astimezone(utc)
-            else:
-                # Fallback: если ZoneInfo недоступен, прибавляем 3 часа (для вашей системы)
-                event_dt = event_dt + timedelta(hours=3)
-                event_dt = event_dt.replace(tzinfo=timezone.utc)
+            # Время остается в МСК (как ввёл пользователь)
+            # НЕ конвертируем в UTC, сохраняем как есть
             # Сохраняем в ISO (с таймзоной +00:00)
             await state.update_data(event_at=event_dt.isoformat())
             await message.answer(
