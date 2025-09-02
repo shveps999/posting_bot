@@ -10,7 +10,7 @@ def get_main_keyboard() -> InlineKeyboardMarkup:
     builder.button(text="✏️ Создать мероприятие⠀", callback_data="create_post") 
     builder.button(text="⭐️ Изменить категории⠀⠀", callback_data="change_category")
     builder.button(text="⠀🏙 Изменить город⠀⠀⠀⠀⠀⠀", callback_data="change_city")
-    builder.button(text="⠀⠀💬 ⠀Помощь⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀", callback_data="help")
+    builder.button(text="⠀⠀💬 Помощь⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀", callback_data="help")
     
     builder.adjust(1)
     return builder.as_markup()
