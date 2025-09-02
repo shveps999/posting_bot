@@ -33,12 +33,11 @@ def get_category_selection_keyboard(
     # Создаем кнопки с правильным выравниванием
     from events_bot.utils import visual_len
 
-    MAX_NAME_LENGTH = 20  # Максимальная длина названия
-    TOTAL_WIDTH = 25      # Общая ширина кнопки
+    MAX_NAME_LENGTH = 18  # Максимальная длина названия
 
     for category in categories:
         is_selected = category.id in selected_ids
-        checkbox = "✅" if is_selected else "☐"
+        checkbox = "⭐" if is_selected else "⬜"
 
         # Используем display_name для UI (с эмодзи), fallback на name
         display_name = getattr(category, "display_name", None) or category.name
@@ -63,12 +62,13 @@ def get_category_selection_keyboard(
                         break
             display_name = result
 
-        # Выравниваем: название слева, чекбокс справа
+        # Фиксированная ширина - используем пробелы для выравнивания
         name_visual_len = visual_len(display_name)
-        spaces_count = TOTAL_WIDTH - name_visual_len - 1  # -1 для чекбокса
-        spaces = " " * max(1, spaces_count)
+        # Добавляем пробелы для выравнивания (18 символов для названия + 2 для чекбокса)
+        spaces_needed = max(1, 20 - name_visual_len)
+        padding = " " * spaces_needed
         
-        text = f"{display_name}{spaces}{checkbox}"
+        text = f"{display_name}{padding}{checkbox}"
         builder.button(text=text, callback_data=f"{prefix}{category.id}")
     builder.adjust(2)
 
