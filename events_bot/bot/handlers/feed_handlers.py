@@ -13,6 +13,7 @@ from events_bot.bot.keyboards.feed_keyboard import (
 from events_bot.storage import file_storage
 import logfire
 from datetime import timezone
+from events_bot.utils import get_clean_category_string
 
 try:
     from zoneinfo import ZoneInfo
@@ -178,10 +179,10 @@ def format_post_for_feed(
             or getattr(post.author, "username", None)
             or "Аноним"
         )
-    category_names = []
-    if hasattr(post, "categories") and post.categories is not None:
-        category_names = [getattr(cat, "name", "Неизвестно") for cat in post.categories]
-    category_str = ", ".join(category_names) if category_names else "Неизвестно"
+    # Получаем чистые названия категорий без эмодзи для текста
+    category_str = get_clean_category_string(
+        post.categories if hasattr(post, "categories") else None
+    )
     post_city = getattr(post, "city", "Не указан")
     event_at = getattr(post, "event_at", None)
     event_str = _msk_str(event_at)
@@ -204,10 +205,8 @@ def format_feed_list(posts, current_position_start: int, total_posts: int) -> st
     """Формат списка кратких карточек 4-5 постов"""
     lines = ["📰 Лента постов (кратко)", ""]
     for idx, post in enumerate(posts, start=current_position_start):
-        category_names = [
-            getattr(cat, "name", "Неизвестно") for cat in (post.categories or [])
-        ]
-        category_str = ", ".join(category_names) if category_names else "Неизвестно"
+        # Получаем чистые названия категорий без эмодзи
+        category_str = get_clean_category_string(post.categories)
         event_at = getattr(post, "event_at", None)
         event_str = _msk_str(event_at)
         lines.append(f"{idx}. <b>{post.title}</b>")

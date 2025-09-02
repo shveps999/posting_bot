@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 from ..repositories import PostRepository, ModerationRepository
 from ..models import Post, ModerationAction
+from ...utils import get_clean_category_string
 
 
 class ModerationService:
@@ -26,23 +27,25 @@ class ModerationService:
     def format_post_for_moderation(post: Post) -> str:
         """Форматировать пост для модерации"""
         # Безопасно получаем данные, избегая ленивой загрузки
-        category_names = []
-        if hasattr(post, 'categories') and post.categories is not None:
-            category_names = [getattr(cat, 'name', 'Неизвестно') for cat in post.categories]
-        
-        category_str = ', '.join(category_names) if category_names else 'Неизвестно'
-        
-        author_name = 'Аноним'
-        if hasattr(post, 'author') and post.author is not None:
+        # Получаем чистые названия категорий без эмодзи
+        category_str = get_clean_category_string(
+            post.categories if hasattr(post, "categories") else None
+        )
+
+        author_name = "Аноним"
+        if hasattr(post, "author") and post.author is not None:
             author = post.author
-            author_name = (getattr(author, 'first_name', None) or 
-                         getattr(author, 'username', None) or 'Аноним')
-        
-        post_city = getattr(post, 'city', 'Не указан')
-        
-        created_at = getattr(post, 'created_at', None)
-        created_str = created_at.strftime('%d.%m.%Y %H:%M') if created_at else ''
-        
+            author_name = (
+                getattr(author, "first_name", None)
+                or getattr(author, "username", None)
+                or "Аноним"
+            )
+
+        post_city = getattr(post, "city", "Не указан")
+
+        created_at = getattr(post, "created_at", None)
+        created_str = created_at.strftime("%d.%m.%Y %H:%M") if created_at else ""
+
         return (
             f"Пост на модерацию\n\n"
             f"Заголовок: {post.title}\n"

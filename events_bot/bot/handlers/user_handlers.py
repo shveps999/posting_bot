@@ -13,6 +13,7 @@ from events_bot.bot.keyboards import (
     get_category_selection_keyboard,
     get_city_keyboard,
 )
+from events_bot.utils import get_clean_category_string
 
 router = Router()
 
@@ -69,10 +70,8 @@ async def cmd_my_posts(message: Message, db):
         # Загружаем связанные объекты
         await db.refresh(post, attribute_names=["categories"])
         status = "✅ Одобрен" if post.is_approved else "⏳ На модерации"
-        category_names = (
-            [cat.name for cat in post.categories] if post.categories else ["Неизвестно"]
-        )
-        category_str = ", ".join(category_names)
+        # Получаем чистые названия категорий без эмодзи
+        category_str = get_clean_category_string(post.categories)
         post_city = getattr(post, "city", "Не указан")
         response += f"📝 {post.title}\n"
         response += f"🏙️ {post_city}\n"
@@ -205,10 +204,8 @@ async def show_my_posts_callback(callback: CallbackQuery, db):
         # Загружаем связанные объекты
         await db.refresh(post, attribute_names=["categories"])
         status = "✅ Одобрен" if post.is_approved else "⏳ На модерации"
-        category_names = (
-            [cat.name for cat in post.categories] if post.categories else ["Неизвестно"]
-        )
-        category_str = ", ".join(category_names)
+        # Получаем чистые названия категорий без эмодзи
+        category_str = get_clean_category_string(post.categories)
         post_city = getattr(post, "city", "Не указан")
         response += f"📝 {post.title}\n"
         response += f"🏙️ {post_city}\n"

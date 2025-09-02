@@ -2,6 +2,7 @@ from typing import List
 import logfire
 from ..repositories import UserRepository
 from ..models import User, Post
+from ...utils import get_clean_category_string
 
 
 class NotificationService:
@@ -33,13 +34,10 @@ class NotificationService:
     def format_post_notification(post: Post) -> str:
         """Форматировать уведомление о посте"""
         # Безопасно получаем данные, избегая ленивой загрузки
-        category_names = []
-        if hasattr(post, "categories") and post.categories is not None:
-            category_names = [
-                getattr(cat, "name", "Неизвестно") for cat in post.categories
-            ]
-
-        category_str = ", ".join(category_names) if category_names else "Неизвестно"
+        # Получаем названия категорий без эмодзи для чистого текста
+        category_str = get_clean_category_string(
+            post.categories if hasattr(post, "categories") else None
+        )
 
         author_name = "Аноним"
         if hasattr(post, "author") and post.author is not None:

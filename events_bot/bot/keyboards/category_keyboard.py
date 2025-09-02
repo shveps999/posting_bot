@@ -30,11 +30,19 @@ def get_category_selection_keyboard(
     # Используем разные префиксы для разных контекстов
     prefix = "post_category_" if for_post else "category_"
 
-    # Выравнивание названий категорий по ширине
-    max_len = max(len(cat.name) for cat in categories) if categories else 0
+    # Выравнивание названий категорий с учетом эмодзи
+    from events_bot.utils import visual_len
+
+    max_visual_len = (
+        max(visual_len(cat.name) for cat in categories) if categories else 0
+    )
+
     for category in categories:
         is_selected = category.id in selected_ids
-        padded_name = category.name.ljust(max_len)
+        # Добавляем пробелы для выравнивания по правому краю
+        current_len = visual_len(category.name)
+        padding = max_visual_len - current_len
+        padded_name = category.name + " " * padding
         text = f"{padded_name} {'⭐️' if is_selected else '▫️'}"
         builder.button(text=text, callback_data=f"{prefix}{category.id}")
     builder.adjust(2)
