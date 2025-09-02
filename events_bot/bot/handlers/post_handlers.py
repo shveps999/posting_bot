@@ -28,9 +28,9 @@ async def cmd_create_post(message: Message, state: FSMContext, db):
     # Устанавливаем начальное состояние создания поста
     await state.set_state(PostStates.creating_post)
 
-    # Сначала предлагаем выбрать город
+    # Сначала предлагаем выбрать города
     await message.answer(
-        "🏙️ Выберите город для поста:", reply_markup=get_city_keyboard(for_post=True)
+        "🏙️ Выберите города для поста:", reply_markup=get_city_keyboard(for_post=True)
     )
     await state.set_state(PostStates.waiting_for_city_selection)
 
@@ -51,9 +51,9 @@ async def start_create_post(callback: CallbackQuery, state: FSMContext, db):
     # Устанавливаем начальное состояние создания поста
     await state.set_state(PostStates.creating_post)
 
-    # Сначала предлагаем выбрать город
+    # Сначала предлагаем выбрать города
     await callback.message.edit_text(
-        "🏙️ Выберите город для поста:", reply_markup=get_city_keyboard(for_post=True)
+        "🏙️ Выберите города для поста:", reply_markup=get_city_keyboard(for_post=True)
     )
     await state.set_state(PostStates.waiting_for_city_selection)
     await callback.answer()
@@ -75,15 +75,73 @@ async def cancel_post_creation(callback: CallbackQuery, state: FSMContext, db):
 async def process_post_city_selection(callback: CallbackQuery, state: FSMContext, db):
     """Обработка выбора города для поста"""
     city = callback.data[10:]  # Убираем префикс "post_city_"
+    
+    # Получаем текущие выбранные города из состояния
+    data = await state.get_data()
+    selected_cities = data.get('selected_cities', [])
+    
+    # Переключаем состояние города
+    if city in selected_cities:
+        selected_cities.remove(city)
+    else:
+        selected_cities.append(city)
+    
+    # Сохраняем обновленный список городов
+    await state.update_data(selected_cities=selected_cities)
+    
+    # Обновляем клавиатуру
+    city_text = ", ".join(selected_cities) if selected_cities else "не выбраны"
+    await callback.message.edit_text(
+        f"🏙️ Выбранные города: {city_text}\n\nВыберите города для публикации поста:",
+        reply_markup=get_city_keyboard(for_post=True, selected_cities=selected_cities)
+    )
+    await callback.answer()
 
-    # Сохраняем выбранный город
-    await state.update_data(post_city=city)
 
+@router.callback_query(
+    PostStates.waiting_for_city_selection, F.data == "post_city_select_all"
+)
+async def select_all_cities(callback: CallbackQuery, state: FSMContext, db):
+    """Выбрать все города для поста"""
+    all_cities = [
+        "Москва", "Санкт-Петербург", "Новосибирск", "Екатеринбург",
+        "Казань", "Нижний Новгород", "Челябинск", "Самара",
+        "Уфа", "Ростов-на-Дону"
+    ]
+    
+    # Сохраняем все города
+    await state.update_data(selected_cities=all_cities)
+    
+    # Обновляем клавиатуру
+    city_text = ", ".join(all_cities)
+    await callback.message.edit_text(
+        f"🏙️ Выбранные города: {city_text}\n\nВыберите города для публикации поста:",
+        reply_markup=get_city_keyboard(for_post=True, selected_cities=all_cities)
+    )
+    await callback.answer("Все города выбраны!")
+
+
+@router.callback_query(
+    PostStates.waiting_for_city_selection, F.data == "post_city_confirm"
+)
+async def confirm_city_selection(callback: CallbackQuery, state: FSMContext, db):
+    """Подтверждение выбора городов для поста"""
+    data = await state.get_data()
+    selected_cities = data.get('selected_cities', [])
+    
+    if not selected_cities:
+        await callback.answer("Выберите хотя бы один город!")
+        return
+    
+    # Сохраняем выбранные города в формате строки для совместимости
+    await state.update_data(post_city=", ".join(selected_cities))
+    
     # Получаем все категории для выбора
     all_categories = await CategoryService.get_all_categories(db)
-
+    
+    city_text = ", ".join(selected_cities)
     await callback.message.edit_text(
-        f"🏙️ Город {city} выбран!\n\n📂 Теперь выберите категории для поста:",
+        f"🏙️ Города выбраны: {city_text}\n\n📂 Теперь выберите категории для поста:",
         reply_markup=get_category_selection_keyboard(all_categories, for_post=True),
     )
     await state.set_state(PostStates.waiting_for_category_selection)
