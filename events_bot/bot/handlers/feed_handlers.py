@@ -206,7 +206,9 @@ def format_post_for_feed(
         f"👤 Автор: {author_name}\n"
         f"🏙️ Город: {post_city}\n"
         f"📂 Категории: {category_str}\n"
-        f"📅 Актуально до: {event_str}\n"
+        f"📅 Событие: {event_str} (МСК)\n"
+        if event_str
+        else ""
         f"💖 Сердечек: {likes_count}\n\n"
         f"📊 {current_position} из {total_posts} постов"
     )

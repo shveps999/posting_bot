@@ -51,12 +51,35 @@ class NotificationService:
             )
 
         event_at = getattr(post, "event_at", None)
-        event_str = event_at.strftime("%d.%m.%Y %H:%M") if event_at else ""
+        if event_at:
+            # Переводим время из UTC в МСК для отображения
+            try:
+                from zoneinfo import ZoneInfo
+                from datetime import timezone, timedelta
+
+                if ZoneInfo:
+                    msk = ZoneInfo("Europe/Moscow")
+                    event_at_msk = event_at.replace(tzinfo=timezone.utc).astimezone(msk)
+                    event_str = event_at_msk.strftime("%d.%m.%Y %H:%M")
+                else:
+                    # Fallback: добавляем 3 часа к UTC времени
+                    event_at_msk = event_at + timedelta(hours=3)
+                    event_str = event_at_msk.strftime("%d.%m.%Y %H:%M")
+            except Exception:
+                # Fallback при ошибке
+                from datetime import timedelta
+
+                event_at_msk = event_at + timedelta(hours=3)
+                event_str = event_at_msk.strftime("%d.%m.%Y %H:%M")
+        else:
+            event_str = ""
+
+        event_line = f"Событие: {event_str} (МСК)" if event_str else ""
 
         return (
             f"Новый пост в категориях '{category_str}'\n\n"
             f"{post.title}\n\n"
             f"{post.content}\n\n"
             f"Автор: {author_name}\n"
-            f"Актуально до: {event_str}"
+            f"{event_line}"
         )
