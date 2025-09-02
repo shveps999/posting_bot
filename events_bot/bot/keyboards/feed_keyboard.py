@@ -55,7 +55,7 @@ def get_feed_post_keyboard(
             text="Вперед ➡️", callback_data=f"feed_next_{current_page}_{total_pages}"
         )
     if url:
-        builder.button(text="🔗 Открыть ссылку", url=url)
+        builder.button(text="🔗 Подробнее", url=url)
     builder.button(text="🏠 Главное меню", callback_data="main_menu")
     builder.adjust(2, 2)
     return builder.as_markup()
