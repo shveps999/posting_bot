@@ -23,10 +23,11 @@ class NotificationService:
         users = await UserRepository.get_users_by_city_and_categories(
             db, post_city, category_ids
         )
-
-    # Включаем автора поста в список уведомляемых
-    logfire.info(f"Найдено {len(users)} пользователей для уведомления (включая автора)")
-    return users
+        # Включаем автора поста в список уведомляемых
+        logfire.info(
+            f"Найдено {len(users)} пользователей для уведомления (включая автора)"
+        )
+        return users
 
     @staticmethod
     def format_post_notification(post: Post) -> str:
