@@ -102,6 +102,7 @@ class Post(Base, TimestampMixin):
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     image_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    url: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)  # Ссылка
     is_approved: Mapped[bool] = mapped_column(Boolean, default=False)
     is_published: Mapped[bool] = mapped_column(Boolean, default=False)
     published_at: Mapped[Optional[DateTime]] = mapped_column(DateTime, nullable=True)
@@ -126,7 +127,9 @@ class ModerationRecord(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(primary_key=True)
     post_id: Mapped[int] = mapped_column(ForeignKey("posts.id"), nullable=False)
     moderator_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    action: Mapped[str] = mapped_column(String(20), nullable=False)  # 'approve', 'reject', 'request_changes'
+    action: Mapped[str] = mapped_column(
+        String(20), nullable=False
+    )  # 'approve', 'reject', 'request_changes'
     comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Связи
@@ -148,9 +151,7 @@ class Like(Base, TimestampMixin):
     post: Mapped[Post] = relationship()
 
     # Уникальный индекс для предотвращения дублирования лайков
-    __table_args__ = (
-        UniqueConstraint("user_id", "post_id", name="uq_like_user_post"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "post_id", name="uq_like_user_post"),)
 
 
 class ModerationAction(str, Enum):

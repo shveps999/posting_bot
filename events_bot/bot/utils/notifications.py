@@ -4,6 +4,7 @@ from events_bot.database.models import User, Post
 from events_bot.database.services import NotificationService
 from events_bot.storage import file_storage
 from aiogram.types import FSInputFile, InputMediaPhoto
+from events_bot.bot.keyboards.notification_keyboard import get_post_notification_keyboard
 import logfire
 
 
@@ -21,7 +22,7 @@ async def send_post_notification(bot: Bot, post: Post, users: List[User], db) ->
     for user in users:
         try:
             logfire.debug(f"Отправляем уведомление пользователю {user.id}")
-            
+            keyboard = get_post_notification_keyboard(post.id, getattr(post, "url", None))
             # Если у поста есть изображение, отправляем с фото
             if post.image_id:
                 media_photo = await file_storage.get_media_photo(post.image_id)
@@ -30,20 +31,19 @@ async def send_post_notification(bot: Bot, post: Post, users: List[User], db) ->
                     await bot.send_photo(
                         chat_id=user.id,
                         photo=media_photo.media,
-                        caption=notification_text
+                        caption=notification_text,
+                        reply_markup=keyboard
                     )
                 else:
                     # Если файл не найден, отправляем только текст
                     logfire.warning(f"Изображение для поста {post.id} не найдено, отправляем только текст")
-                    await bot.send_message(chat_id=user.id, text=notification_text)
+                    await bot.send_message(chat_id=user.id, text=notification_text, reply_markup=keyboard)
             else:
                 # Если нет изображения, отправляем только текст
                 logfire.debug(f"Отправляем уведомление без изображения пользователю {user.id}")
-                await bot.send_message(chat_id=user.id, text=notification_text)
-            
+                await bot.send_message(chat_id=user.id, text=notification_text, reply_markup=keyboard)
             success_count += 1
             logfire.debug(f"Уведомление успешно отправлено пользователю {user.id}")
-            
         except Exception as e:
             error_count += 1
             logfire.warning(f"Ошибка отправки уведомления пользователю {user.id}: {e}")

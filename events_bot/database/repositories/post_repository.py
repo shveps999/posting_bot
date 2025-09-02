@@ -20,6 +20,7 @@ class PostRepository:
         city: str | None = None,
         image_id: str | None = None,
         event_at: datetime | None = None,
+        url: str | None = None,
     ) -> Post:
         # Получаем объекты категорий
         categories_result = await db.execute(
@@ -35,6 +36,7 @@ class PostRepository:
             city=city,
             image_id=image_id,
             event_at=event_at,
+            url=url,
             categories=category_objs,
         )
         db.add(post)

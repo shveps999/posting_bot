@@ -30,9 +30,12 @@ def get_category_selection_keyboard(
     # Используем разные префиксы для разных контекстов
     prefix = "post_category_" if for_post else "category_"
     
+    # Выравнивание названий категорий по ширине
+    max_len = max(len(cat.name) for cat in categories) if categories else 0
     for category in categories:
         is_selected = category.id in selected_ids
-        text = f"{category.name} {'⭐️' if is_selected else '▫️'}"
+        padded_name = category.name.ljust(max_len)
+        text = f"{padded_name} {'⭐️' if is_selected else '▫️'}"
         builder.button(text=text, callback_data=f"{prefix}{category.id}")
     builder.adjust(2)
     

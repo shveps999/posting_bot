@@ -1,7 +1,8 @@
+
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-from events_bot.database.services import UserService, CategoryService, PostService
+from events_bot.database.services import UserService, CategoryService, PostService, LikeService
 from events_bot.bot.states import UserStates
 from events_bot.bot.keyboards import (
     get_main_keyboard,
@@ -10,6 +11,25 @@ from events_bot.bot.keyboards import (
 )
 
 router = Router()
+
+@router.callback_query(F.data.startswith("notify_like_"))
+async def handle_notify_like(callback: CallbackQuery, db):
+    """Добавить пост в избранное из уведомления"""
+    try:
+        post_id = int(callback.data.split("notify_like_")[1])
+        user_id = callback.from_user.id
+        post = await PostService.get_post_by_id(db, post_id)
+        if not post:
+            await callback.answer("Пост не найден", show_alert=True)
+            return
+        liked = await LikeService.is_post_liked_by_user(db, user_id, post_id)
+        if liked:
+            await callback.answer("Уже в избранном", show_alert=True)
+            return
+        await LikeService.add_like(db, user_id, post_id)
+        await callback.answer("Добавлено в избранное!", show_alert=True)
+    except Exception:
+        await callback.answer("Ошибка добавления в избранное", show_alert=True)
 
 
 def register_user_handlers(dp: Router):

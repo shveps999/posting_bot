@@ -24,20 +24,35 @@ class PostService:
         city: str | None = None,
         image_id: str | None = None,
         event_at: str | None = None,
+        url: str | None = None,
     ) -> Post:
         """Создать новый пост"""
         parsed_event_at = None
         if event_at is not None:
             try:
+                from zoneinfo import ZoneInfo
+
+                msk = ZoneInfo("Europe/Moscow")
                 parsed_event_at = datetime.fromisoformat(event_at)
-                # Приводим к UTC и убираем tzinfo для корректного сравнения в SQLite
-                if parsed_event_at.tzinfo is not None:
-                    parsed_event_at = parsed_event_at.astimezone(timezone.utc)
-                parsed_event_at = parsed_event_at.replace(tzinfo=None)
+                # Если время без tzinfo, считаем что оно в МСК
+                if parsed_event_at.tzinfo is None:
+                    parsed_event_at = parsed_event_at.replace(tzinfo=msk)
+                # Переводим в UTC и убираем tzinfo для хранения
+                parsed_event_at = parsed_event_at.astimezone(timezone.utc).replace(
+                    tzinfo=None
+                )
             except Exception:
                 parsed_event_at = None
         return await PostRepository.create_post(
-            db, title, content, author_id, category_ids, city, image_id, parsed_event_at
+            db,
+            title,
+            content,
+            author_id,
+            category_ids,
+            city,
+            image_id,
+            parsed_event_at,
+            url,
         )
 
     @staticmethod
@@ -50,6 +65,7 @@ class PostService:
         city: str | None = None,
         image_id: str | None = None,
         event_at: str | None = None,
+        url: str | None = None,
         bot=None,
     ) -> Post:
         """Создать пост и отправить на модерацию"""
@@ -64,13 +80,21 @@ class PostService:
             except Exception:
                 parsed_event_at = None
         post = await PostRepository.create_post(
-            db, title, content, author_id, category_ids, city, image_id, parsed_event_at
+            db,
+            title,
+            content,
+            author_id,
+            category_ids,
+            city,
+            image_id,
+            parsed_event_at,
+            url,
         )
-        
+
         # Отправляем на модерацию
         if post and bot:
             await PostService.send_post_to_moderation(bot, post, db)
-        
+
         return post
 
     @staticmethod
@@ -78,22 +102,24 @@ class PostService:
         """Отправить пост на модерацию"""
         moderation_group_id = os.getenv("MODERATION_GROUP_ID")
         logfire.info(f"MODERATION_GROUP_ID: {moderation_group_id}")
-        
+
         if not moderation_group_id:
             logfire.error("MODERATION_GROUP_ID не установлен")
             return
-        
+
         # Загружаем связанные объекты если передан db
         if db:
             await db.refresh(post, attribute_names=["author", "categories"])
-        
+
         # Форматируем пост для модерации
         moderation_text = ModerationService.format_post_for_moderation(post)
         moderation_keyboard = get_moderation_keyboard(post.id)
-        
-        logfire.info(f"Отправляем пост {post.id} на модерацию в группу {moderation_group_id}")
+
+        logfire.info(
+            f"Отправляем пост {post.id} на модерацию в группу {moderation_group_id}"
+        )
         logfire.debug(f"Текст модерации: {moderation_text[:100]}...")
-        
+
         try:
             # Если у поста есть изображение, отправляем с фото
             if post.image_id:
@@ -105,24 +131,25 @@ class PostService:
                         chat_id=moderation_group_id,
                         photo=media_photo.media,
                         caption=moderation_text,
-                        reply_markup=moderation_keyboard
+                        reply_markup=moderation_keyboard,
                     )
                     logfire.info("Пост с изображением отправлен на модерацию")
                     return
                 else:
                     logfire.warning("Изображение не найдено")
-            
+
             # Если нет изображения, отправляем только текст
             logfire.info("Отправляем пост без изображения")
             await bot.send_message(
                 chat_id=moderation_group_id,
                 text=moderation_text,
-                reply_markup=moderation_keyboard
+                reply_markup=moderation_keyboard,
             )
             logfire.info("Пост без изображения отправлен на модерацию")
         except Exception as e:
             logfire.error(f"Ошибка отправки поста на модерацию: {e}")
             import traceback
+
             logfire.error(f"Стек ошибки: {traceback.format_exc()}")
 
     @staticmethod
@@ -155,9 +182,7 @@ class PostService:
         return await PostRepository.approve_post(db, post_id, moderator_id, comment)
 
     @staticmethod
-    async def publish_post(
-        db: AsyncSession, post_id: int
-    ) -> Post:
+    async def publish_post(db: AsyncSession, post_id: int) -> Post:
         """Опубликовать одобренный пост"""
         return await PostRepository.publish_post(db, post_id)
 
