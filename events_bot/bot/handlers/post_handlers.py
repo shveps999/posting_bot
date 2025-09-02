@@ -30,7 +30,7 @@ async def cmd_create_post(message: Message, state: FSMContext, db):
 
     # Сначала предлагаем выбрать города
     await message.answer(
-        "🏙️ Выберите города для поста:", reply_markup=get_city_keyboard(for_post=True)
+        "🏙️ Выберите город для поста:", reply_markup=get_city_keyboard(for_post=True)
     )
     await state.set_state(PostStates.waiting_for_city_selection)
 
@@ -53,7 +53,7 @@ async def start_create_post(callback: CallbackQuery, state: FSMContext, db):
 
     # Сначала предлагаем выбрать города
     await callback.message.edit_text(
-        "🏙️ Выберите города для поста:", reply_markup=get_city_keyboard(for_post=True)
+        "🏙️ Выберите город для поста:", reply_markup=get_city_keyboard(for_post=True)
     )
     await state.set_state(PostStates.waiting_for_city_selection)
     await callback.answer()
@@ -76,9 +76,7 @@ async def select_all_cities(callback: CallbackQuery, state: FSMContext, db):
     """Выбрать все города для поста"""
     logfire.info(f"Получен callback post_city_select_all от пользователя {callback.from_user.id}")
     all_cities = [
-        "Москва", "Санкт-Петербург", "Новосибирск", "Екатеринбург",
-        "Казань", "Нижний Новгород", "Челябинск", "Самара",
-        "Уфа", "Ростов-на-Дону"
+        "Москва", "Санкт-Петербург"
     ]
     
     # Сохраняем все города
@@ -87,7 +85,7 @@ async def select_all_cities(callback: CallbackQuery, state: FSMContext, db):
     # Обновляем клавиатуру
     city_text = ", ".join(all_cities)
     await callback.message.edit_text(
-        f"🏙️ Выбранные города: {city_text}\n\nВыберите города для публикации поста:",
+        f"🏙️ Выбранные города: {city_text}\n\nВыберите город для публикации мероприятия:",
         reply_markup=get_city_keyboard(for_post=True, selected_cities=all_cities)
     )
     await callback.answer("Все города выбраны!")
@@ -115,7 +113,7 @@ async def confirm_city_selection(callback: CallbackQuery, state: FSMContext, db)
     
     city_text = ", ".join(selected_cities)
     await callback.message.edit_text(
-        f"🏙️ Города выбраны: {city_text}\n\n📂 Теперь выберите категории для поста:",
+        f"🏙️ Города выбраны: {city_text}\n\n📂 Теперь выберите категории мероприятия:",
         reply_markup=get_category_selection_keyboard(all_categories, for_post=True),
     )
     await state.set_state(PostStates.waiting_for_category_selection)
@@ -172,7 +170,7 @@ async def process_post_category_selection(
     # Получаем все категории для выбора
     all_categories = await CategoryService.get_all_categories(db)
     await callback.message.edit_text(
-        "📂 Выберите одну или несколько категорий для поста (можно выбрать несколько):",
+        "📂 Выберите одну или несколько категорий для мероприятия (можно выбрать несколько):",
         reply_markup=get_category_selection_keyboard(
             all_categories, category_ids, for_post=True
         ),
@@ -196,7 +194,7 @@ async def confirm_post_categories(callback: CallbackQuery, state: FSMContext, db
         f"Категории подтверждены для пользователя {callback.from_user.id}: {category_ids}"
     )
     await callback.message.edit_text(
-        f"📝 Создание поста в категориях: {len(category_ids)} выбрано\n\nВведите заголовок поста:"
+        f"📝 Создание мероприятия в категориях: {len(category_ids)} выбрано\n\nВведите заголовок:"
     )
     await state.set_state(PostStates.waiting_for_title)
     logfire.info(
@@ -219,7 +217,7 @@ async def process_post_title(message: Message, state: FSMContext, db):
 
     await state.update_data(title=message.text)
     logfire.info(f"Заголовок сохранен в состоянии: {message.text}")
-    await message.answer("📄 Введите содержание поста:")
+    await message.answer("📄 Введите описание мероприятия:")
     await state.set_state(PostStates.waiting_for_content)
     logfire.info(
         f"Состояние изменено на waiting_for_content для пользователя {message.from_user.id}"
@@ -230,12 +228,12 @@ async def process_post_title(message: Message, state: FSMContext, db):
 async def process_post_content(message: Message, state: FSMContext, db):
     """Обработка содержания поста"""
     if len(message.text) > 2000:
-        await message.answer("❌ Содержание слишком длинное. Максимум 2000 символов.")
+        await message.answer("❌ Описание слишком длинное. Максимум 2000 символов.")
         return
 
     await state.update_data(content=message.text)
     await message.answer(
-        "🔗 Введите ссылку для поста (или отправьте /skip, если ссылки нет):"
+        "🔗 Введите ссылку на мероприятие (или отправьте /skip, если ссылки нет):"
     )
     await state.set_state(PostStates.waiting_for_url)
 
@@ -254,7 +252,6 @@ async def process_post_url(message: Message, state: FSMContext, db):
         "⏰ Введите дату и время события в формате ДД.ММ.ГГГГ ЧЧ:ММ (например, 25.12.2025 18:30)\n\n"
         "🕐 Время указывайте по московскому часовому поясу (МСК)\n"
         "⚠️ Время должно быть в будущем!\n"
-        "📝 После наступления этого времени пост будет скрыт из ленты и удалён."
     )
     await state.set_state(PostStates.waiting_for_event_datetime)
 
@@ -299,7 +296,7 @@ async def process_event_datetime(message: Message, state: FSMContext, db):
             # Сохраняем в ISO (с таймзоной +00:00)
             await state.update_data(event_at=event_dt.isoformat())
             await message.answer(
-                "🖼️ Отправьте изображение для поста (или нажмите /skip для пропуска):"
+                "🖼️ Отправьте изображение для мероприятия (или нажмите /skip для пропуска):"
             )
             await state.set_state(PostStates.waiting_for_image)
             return
