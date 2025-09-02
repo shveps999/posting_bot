@@ -165,11 +165,19 @@ def _msk_str(dt) -> str:
         return ""
     # event_at хранится как наивное UTC; при показе переводим в МСК
     try:
-        msk = ZoneInfo("Europe/Moscow") if ZoneInfo else None
+        if ZoneInfo:
+            msk = ZoneInfo("Europe/Moscow")
+            dt = dt.replace(tzinfo=timezone.utc).astimezone(msk)
+        else:
+            # Если ZoneInfo недоступен, добавляем 3 часа к UTC времени
+            from datetime import timedelta
+
+            dt = dt + timedelta(hours=3)
     except Exception:
-        msk = None
-    if msk:
-        dt = dt.replace(tzinfo=timezone.utc).astimezone(msk)
+        # Fallback: просто добавляем 3 часа
+        from datetime import timedelta
+
+        dt = dt + timedelta(hours=3)
     return dt.strftime("%d.%m.%Y %H:%M")
 
 
