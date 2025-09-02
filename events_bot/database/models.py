@@ -11,10 +11,17 @@ from sqlalchemy import (
     BigInteger,
     UniqueConstraint,
 )
+from datetime import datetime, timezone
 from sqlalchemy.orm import DeclarativeBase, mapped_column, relationship
 from sqlalchemy.orm import Mapped
 from typing import List, Optional
 from enum import Enum
+
+
+# Функция для получения UTC времени
+def utc_now():
+    """Возвращает текущее время в UTC без timezone info"""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 # Базовый класс для моделей в стиле SQLAlchemy 2.0
@@ -27,10 +34,10 @@ class TimestampMixin:
     """Миксин для добавления полей времени создания и обновления"""
 
     created_at: Mapped[DateTime] = mapped_column(
-        DateTime, default=func.now(), nullable=False
+        DateTime, default=utc_now, nullable=False
     )
     updated_at: Mapped[DateTime] = mapped_column(
-        DateTime, default=func.now(), onupdate=func.now(), nullable=False
+        DateTime, default=utc_now, onupdate=utc_now, nullable=False
     )
 
 

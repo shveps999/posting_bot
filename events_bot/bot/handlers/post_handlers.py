@@ -212,15 +212,22 @@ async def process_event_datetime(message: Message, state: FSMContext, db):
             event_dt = datetime.strptime(text, fmt)
 
             # Проверяем что время не в прошлом (сравниваем в МСК)
-            current_msk = datetime.now()
             if ZoneInfo is not None:
                 msk = ZoneInfo("Europe/Moscow")
                 current_msk = datetime.now(msk).replace(tzinfo=None)
+            else:
+                # Fallback: получаем московское время через UTC
+                current_utc = datetime.now(timezone.utc)
+                current_msk = current_utc.replace(tzinfo=None) + timedelta(hours=3)
 
-            if event_dt <= current_msk:
+            # Добавляем запас времени (минимум 30 минут в будущем)
+            min_future_time = current_msk + timedelta(minutes=30)
+
+            if event_dt <= min_future_time:
                 await message.answer(
-                    "❌ Время события не может быть в прошлом!\n"
+                    "❌ Время события должно быть минимум через 30 минут!\n"
                     f"Сейчас: {current_msk.strftime('%d.%m.%Y %H:%M')} (МСК)\n"
+                    f"Минимальное время: {min_future_time.strftime('%d.%m.%Y %H:%M')} (МСК)\n"
                     "Выберите время в будущем."
                 )
                 return
@@ -231,8 +238,8 @@ async def process_event_datetime(message: Message, state: FSMContext, db):
                 utc = ZoneInfo("UTC")
                 event_dt = event_dt.replace(tzinfo=msk).astimezone(utc)
             else:
-                # Fallback: если ZoneInfo недоступен, вручную вычитаем 3 часа
-                event_dt = event_dt - timedelta(hours=3)
+                # Fallback: если ZoneInfo недоступен, прибавляем 3 часа (для вашей системы)
+                event_dt = event_dt + timedelta(hours=3)
                 event_dt = event_dt.replace(tzinfo=timezone.utc)
             # Сохраняем в ISO (с таймзоной +00:00)
             await state.update_data(event_at=event_dt.isoformat())
