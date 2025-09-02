@@ -1,8 +1,12 @@
-
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-from events_bot.database.services import UserService, CategoryService, PostService, LikeService
+from events_bot.database.services import (
+    UserService,
+    CategoryService,
+    PostService,
+    LikeService,
+)
 from events_bot.bot.states import UserStates
 from events_bot.bot.keyboards import (
     get_main_keyboard,
@@ -11,6 +15,7 @@ from events_bot.bot.keyboards import (
 )
 
 router = Router()
+
 
 @router.callback_query(F.data.startswith("notify_like_"))
 async def handle_notify_like(callback: CallbackQuery, db):
@@ -44,9 +49,7 @@ async def cmd_main_menu(message: Message):
 Главное меню
 """
     await message.answer(
-        menu_text,
-        reply_markup=get_main_keyboard(),
-        parse_mode="Markdown"
+        menu_text, reply_markup=get_main_keyboard(), parse_mode="Markdown"
     )
 
 
@@ -66,9 +69,11 @@ async def cmd_my_posts(message: Message, db):
         # Загружаем связанные объекты
         await db.refresh(post, attribute_names=["categories"])
         status = "✅ Одобрен" if post.is_approved else "⏳ На модерации"
-        category_names = [cat.name for cat in post.categories] if post.categories else ['Неизвестно']
-        category_str = ', '.join(category_names)
-        post_city = getattr(post, 'city', 'Не указан')
+        category_names = (
+            [cat.name for cat in post.categories] if post.categories else ["Неизвестно"]
+        )
+        category_str = ", ".join(category_names)
+        post_city = getattr(post, "city", "Не указан")
         response += f"📝 {post.title}\n"
         response += f"🏙️ {post_city}\n"
         response += f"📂 {category_str}\n"
@@ -81,9 +86,7 @@ async def cmd_my_posts(message: Message, db):
 @router.message(F.text == "/change_city")
 async def cmd_change_city(message: Message, state: FSMContext):
     """Обработчик команды /change_city"""
-    await message.answer(
-        "Выберите новый город:", reply_markup=get_city_keyboard()
-    )
+    await message.answer("Выберите новый город:", reply_markup=get_city_keyboard())
     await state.set_state(UserStates.waiting_for_city)
 
 
@@ -91,9 +94,7 @@ async def cmd_change_city(message: Message, state: FSMContext):
 async def cmd_change_category(message: Message, state: FSMContext, db):
     """Обработчик команды /change_category"""
     categories = await CategoryService.get_all_categories(db)
-    user_categories = await UserService.get_user_categories(
-        db, message.from_user.id
-    )
+    user_categories = await UserService.get_user_categories(db, message.from_user.id)
     selected_ids = [cat.id for cat in user_categories]
 
     await message.answer(
@@ -138,7 +139,9 @@ async def cmd_help(message: Message):
 
 
 @router.callback_query(F.data.startswith("city_"))
-async def process_city_selection_callback(callback: CallbackQuery, state: FSMContext, db):
+async def process_city_selection_callback(
+    callback: CallbackQuery, state: FSMContext, db
+):
     """Обработка выбора города через инлайн-кнопку"""
     city = callback.data[5:]
 
@@ -175,9 +178,7 @@ async def change_city_callback(callback: CallbackQuery, state: FSMContext):
 async def change_category_callback(callback: CallbackQuery, state: FSMContext, db):
     """Изменение категории через инлайн-кнопку"""
     categories = await CategoryService.get_all_categories(db)
-    user_categories = await UserService.get_user_categories(
-        db, callback.from_user.id
-    )
+    user_categories = await UserService.get_user_categories(db, callback.from_user.id)
     selected_ids = [cat.id for cat in user_categories]
 
     await callback.message.edit_text(
@@ -204,9 +205,11 @@ async def show_my_posts_callback(callback: CallbackQuery, db):
         # Загружаем связанные объекты
         await db.refresh(post, attribute_names=["categories"])
         status = "✅ Одобрен" if post.is_approved else "⏳ На модерации"
-        category_names = [cat.name for cat in post.categories] if post.categories else ['Неизвестно']
-        category_str = ', '.join(category_names)
-        post_city = getattr(post, 'city', 'Не указан')
+        category_names = (
+            [cat.name for cat in post.categories] if post.categories else ["Неизвестно"]
+        )
+        category_str = ", ".join(category_names)
+        post_city = getattr(post, "city", "Не указан")
         response += f"📝 {post.title}\n"
         response += f"🏙️ {post_city}\n"
         response += f"📂 {category_str}\n"
@@ -257,8 +260,6 @@ async def show_main_menu_callback(callback: CallbackQuery):
  *Главное меню*
 """
     await callback.message.edit_text(
-        menu_text,
-        reply_markup=get_main_keyboard(),
-        parse_mode="Markdown"
+        menu_text, reply_markup=get_main_keyboard(), parse_mode="Markdown"
     )
     await callback.answer()

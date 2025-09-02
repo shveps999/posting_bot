@@ -26,10 +26,10 @@ def get_category_selection_keyboard(
         selected_ids = []
 
     builder = InlineKeyboardBuilder()
-    
+
     # Используем разные префиксы для разных контекстов
     prefix = "post_category_" if for_post else "category_"
-    
+
     # Выравнивание названий категорий по ширине
     max_len = max(len(cat.name) for cat in categories) if categories else 0
     for category in categories:
@@ -38,21 +38,15 @@ def get_category_selection_keyboard(
         text = f"{padded_name} {'⭐️' if is_selected else '▫️'}"
         builder.button(text=text, callback_data=f"{prefix}{category.id}")
     builder.adjust(2)
-    
+
     confirm_callback = "confirm_post_categories" if for_post else "confirm_categories"
-    
-    buttons = [
-        InlineKeyboardButton(
-            text="Подтвердить", callback_data=confirm_callback
-        )
-    ]
-    
+
+    buttons = [InlineKeyboardButton(text="Подтвердить", callback_data=confirm_callback)]
+
     if for_post:
         buttons.append(
-            InlineKeyboardButton(
-                text="❌ Отмена", callback_data="cancel_post"
-            )
+            InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_post")
         )
-    
+
     builder.row(*buttons)
     return builder.as_markup()
