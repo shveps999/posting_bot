@@ -17,6 +17,14 @@ from datetime import timezone
 router = Router()
 
 
+@router.callback_query()
+async def debug_callback(callback: CallbackQuery, state: FSMContext):
+    """Отладочный обработчик для всех callback"""
+    current_state = await state.get_state()
+    logfire.info(f"DEBUG: Получен callback {callback.data} в состоянии {current_state} от пользователя {callback.from_user.id}")
+    # Не вызываем callback.answer() чтобы другие обработчики могли обработать
+
+
 def register_post_handlers(dp: Router):
     """Регистрация обработчиков постов"""
     dp.include_router(router)
@@ -74,6 +82,7 @@ async def cancel_post_creation(callback: CallbackQuery, state: FSMContext, db):
 )
 async def process_post_city_selection(callback: CallbackQuery, state: FSMContext, db):
     """Обработка выбора города для поста"""
+    logfire.info(f"Получен callback {callback.data} от пользователя {callback.from_user.id}")
     city = callback.data[10:]  # Убираем префикс "post_city_"
     
     # Получаем текущие выбранные города из состояния
@@ -126,8 +135,10 @@ async def select_all_cities(callback: CallbackQuery, state: FSMContext, db):
 )
 async def confirm_city_selection(callback: CallbackQuery, state: FSMContext, db):
     """Подтверждение выбора городов для поста"""
+    logfire.info(f"Получен callback post_city_confirm от пользователя {callback.from_user.id}")
     data = await state.get_data()
     selected_cities = data.get('selected_cities', [])
+    logfire.info(f"Выбранные города: {selected_cities}")
     
     if not selected_cities:
         await callback.answer("Выберите хотя бы один город!")
