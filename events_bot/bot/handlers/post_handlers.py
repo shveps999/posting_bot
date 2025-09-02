@@ -200,7 +200,7 @@ async def process_post_url(message: Message, state: FSMContext, db):
 @router.message(PostStates.waiting_for_event_datetime)
 async def process_event_datetime(message: Message, state: FSMContext, db):
     """Обработка даты/времени события"""
-    from datetime import datetime
+    from datetime import datetime, timezone, timedelta
 
     try:
         from zoneinfo import ZoneInfo
@@ -232,8 +232,6 @@ async def process_event_datetime(message: Message, state: FSMContext, db):
                 event_dt = event_dt.replace(tzinfo=msk).astimezone(utc)
             else:
                 # Fallback: если ZoneInfo недоступен, вручную вычитаем 3 часа
-                from datetime import timedelta
-
                 event_dt = event_dt - timedelta(hours=3)
                 event_dt = event_dt.replace(tzinfo=timezone.utc)
             # Сохраняем в ISO (с таймзоной +00:00)
