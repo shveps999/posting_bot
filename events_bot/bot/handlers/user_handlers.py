@@ -137,67 +137,6 @@ async def cmd_help(message: Message):
     )
 
 
-@router.message(F.text == "/favorite")
-async def cmd_favorite(message: Message):
-    """Обработчик команды /favorite — открывает избранное"""
-    await message.answer(
-        "❤️ Открываю ваше избранное...",
-        reply_markup=get_main_keyboard()
-    )
-    # Имитируем нажатие кнопки "Избранное" через callback
-    from aiogram.types import CallbackQuery
-    from aiogram.utils.keyboard import InlineKeyboardButton
-    from aiogram import Bot
-
-    # Создаём фейковый callback (нужно для совместимости)
-    bot = message.bot
-    callback = CallbackQuery(
-        id="0",
-        from_user=message.from_user,
-        chat_instance="0",
-        data="liked_posts",
-        message=message
-    )
-    # Устанавливаем callback.bot вручную
-    callback.bot = bot
-    # Получаем диспетчер из бота
-    dp = bot.workflow_data.get("dispatcher")
-
-    if dp:
-        # Вызываем обработчик напрямую
-        await dp.callback_query.handlers.notify(callback, db=message.bot.session)
-
-
-@router.callback_query(F.data == "liked_posts")
-async def show_liked_posts_callback(callback: CallbackQuery, db):
-    """Показать избранные посты пользователя"""
-    user_id = callback.from_user.id
-    posts = await LikeService.get_liked_posts(db, user_id)
-
-    if not posts:
-        await callback.message.edit_text(
-            "❤️ У вас пока нет постов в избранном.",
-            reply_markup=get_main_keyboard()
-        )
-        await callback.answer()
-        return
-
-    response = "❤️ Ваши избранные посты:\n\n"
-    for post in posts:
-        await db.refresh(post, attribute_names=["author", "categories"])
-        author_name = post.author.first_name or post.author.username or "Аноним"
-        category_str = get_clean_category_string(post.categories)
-        post_city = getattr(post, "city", "Не указан")
-        response += f"📝 {post.title}\n"
-        response += f"👤 {author_name}\n"
-        response += f"🏙️ {post_city}\n"
-        response += f"📂 {category_str}\n"
-        response += f"📅 {post.created_at.strftime('%d.%m.%Y %H:%M')}\n\n"
-
-    await callback.message.edit_text(response, reply_markup=get_main_keyboard())
-    await callback.answer()
-
-
 @router.callback_query(F.data.startswith("city_"))
 async def process_city_selection_callback(
     callback: CallbackQuery, state: FSMContext, db
