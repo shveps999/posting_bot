@@ -197,7 +197,8 @@ def format_post_for_feed(
     return (
         f"⭐️ <i>{category_str}</i>\n"
         f"<b>{post.title}</b>\n\n"
-        f"<i>• {event_str}</i>\n\n"
+        f"<i>• {event_str}</i>\n"
+        f"<i>• {getattr(post, 'address', 'Не указан')}</i>\n\n"
         f"{post.content}\n\n"
         if event_str
         else ""
