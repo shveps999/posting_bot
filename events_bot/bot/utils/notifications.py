@@ -39,6 +39,7 @@ async def send_post_notification(bot: Bot, post: Post, users: List[User], db) ->
                         photo=media_photo.media,
                         caption=notification_text,
                         reply_markup=keyboard,
+                        parse_mode="HTML",  # ✅ Добавлено
                     )
                 else:
                     # Если файл не найден, отправляем только текст
@@ -46,7 +47,10 @@ async def send_post_notification(bot: Bot, post: Post, users: List[User], db) ->
                         f"Изображение для поста {post.id} не найдено, отправляем только текст"
                     )
                     await bot.send_message(
-                        chat_id=user.id, text=notification_text, reply_markup=keyboard
+                        chat_id=user.id,
+                        text=notification_text,
+                        reply_markup=keyboard,
+                        parse_mode="HTML",  # ✅ Добавлено
                     )
             else:
                 # Если нет изображения, отправляем только текст
@@ -54,7 +58,10 @@ async def send_post_notification(bot: Bot, post: Post, users: List[User], db) ->
                     f"Отправляем уведомление без изображения пользователю {user.id}"
                 )
                 await bot.send_message(
-                    chat_id=user.id, text=notification_text, reply_markup=keyboard
+                    chat_id=user.id,
+                    text=notification_text,
+                    reply_markup=keyboard,
+                    parse_mode="HTML",  # ✅ Добавлено
                 )
             success_count += 1
             logfire.debug(f"Уведомление успешно отправлено пользователю {user.id}")
