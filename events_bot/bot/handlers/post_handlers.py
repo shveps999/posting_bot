@@ -41,7 +41,7 @@ async def cmd_cancel_post(message: Message, state: FSMContext, db):
     logfire.info(f"Пользователь {message.from_user.id} отменил создание поста")
     await state.clear()
     await message.answer(
-        "❌ Создание поста отменено.", reply_markup=get_main_keyboard()
+        "Создание поста отменено ✖️", reply_markup=get_main_keyboard()
     )
 
 
@@ -64,7 +64,7 @@ async def cancel_post_creation(callback: CallbackQuery, state: FSMContext, db):
     """Отмена создания поста"""
     await state.clear()
     await callback.message.edit_text(
-        "❌ Создание поста отменено.", reply_markup=get_main_keyboard()
+        "Создание поста отменено ✖️", reply_markup=get_main_keyboard()
     )
     await callback.answer()
 
@@ -113,7 +113,7 @@ async def confirm_city_selection(callback: CallbackQuery, state: FSMContext, db)
     
     city_text = ", ".join(selected_cities)
     await callback.message.edit_text(
-        f"🏙️ Города выбраны: {city_text}\n\n📂 Теперь выберите категории мероприятия:",
+        f"📍 Города выбраны: {city_text}\n\n📂 Теперь выберите категории мероприятия:",
         reply_markup=get_category_selection_keyboard(all_categories, for_post=True),
     )
     await state.set_state(PostStates.waiting_for_category_selection)
@@ -144,7 +144,7 @@ async def process_post_city_selection(callback: CallbackQuery, state: FSMContext
     # Обновляем клавиатуру
     city_text = ", ".join(selected_cities) if selected_cities else "не выбраны"
     await callback.message.edit_text(
-        f"🏙️ Выбранные города: {city_text}\n\nВыберите города для публикации поста:",
+        f"📍 Выбранные города: {city_text}\n\nВыберите города для публикации поста:",
         reply_markup=get_city_keyboard(for_post=True, selected_cities=selected_cities)
     )
     await callback.answer()
@@ -170,7 +170,7 @@ async def process_post_category_selection(
     # Получаем все категории для выбора
     all_categories = await CategoryService.get_all_categories(db)
     await callback.message.edit_text(
-        "📂 Выберите одну или несколько категорий для мероприятия (можно выбрать несколько):",
+        "⭐️ Выберите одну или несколько категорий для мероприятия:",
         reply_markup=get_category_selection_keyboard(
             all_categories, category_ids, for_post=True
         ),
@@ -212,7 +212,7 @@ async def process_post_title(message: Message, state: FSMContext, db):
     )
 
     if len(message.text) > 100:
-        await message.answer("❌ Заголовок слишком длинный. Максимум 100 символов.")
+        await message.answer("✖️ Заголовок слишком длинный. Максимум 100 символов.")
         return
 
     await state.update_data(title=message.text)
@@ -228,7 +228,7 @@ async def process_post_title(message: Message, state: FSMContext, db):
 async def process_post_content(message: Message, state: FSMContext, db):
     """Обработка содержания поста"""
     if len(message.text) > 2000:
-        await message.answer("❌ Описание слишком длинное. Максимум 2000 символов.")
+        await message.answer("✖️ Описание слишком длинное. Максимум 2000 символов.")
         return
 
     await state.update_data(content=message.text)
@@ -244,7 +244,7 @@ async def process_post_url(message: Message, state: FSMContext, db):
     url = None if message.text == "/skip" else message.text.strip()
     if url and not (url.startswith("http://") or url.startswith("https://")):
         await message.answer(
-            "❌ Ссылка должна начинаться с http:// или https://. Попробуйте снова или отправьте /skip."
+            "✖️ Ссылка должна начинаться с http:// или https://. Попробуйте снова или отправьте /skip."
         )
         return
     await state.update_data(url=url)
@@ -284,7 +284,7 @@ async def process_event_datetime(message: Message, state: FSMContext, db):
 
             if event_dt <= min_future_time:
                 await message.answer(
-                    "❌ Время события должно быть минимум через 30 минут!\n"
+                    "✖️ Время события должно быть не ранее, чем через 30 минут!\n"
                     f"Сейчас: {current_msk.strftime('%d.%m.%Y %H:%M')} (МСК)\n"
                     f"Минимальное время: {min_future_time.strftime('%d.%m.%Y %H:%M')} (МСК)\n"
                     "Выберите время в будущем."
@@ -296,14 +296,14 @@ async def process_event_datetime(message: Message, state: FSMContext, db):
             # Сохраняем в ISO (с таймзоной +00:00)
             await state.update_data(event_at=event_dt.isoformat())
             await message.answer(
-                "🖼️ Отправьте изображение для мероприятия (или нажмите /skip для пропуска):"
+                "🌌 Отправьте изображение для мероприятия (или нажмите /skip для пропуска):"
             )
             await state.set_state(PostStates.waiting_for_image)
             return
         except ValueError:
             continue
     await message.answer(
-        "❌ Неверный формат. Пример: 25.12.2025 18:30. Попробуйте снова."
+        "✖️ Неверный формат. Пример: 25.12.2025 18:30. Попробуйте снова."
     )
 
 
@@ -315,7 +315,7 @@ async def process_post_image(message: Message, state: FSMContext, db):
         return
 
     if not message.photo:
-        await message.answer("❌ Пожалуйста, отправьте изображение или нажмите /skip")
+        await message.answer("✖️ Пожалуйста, отправьте изображение или нажмите /skip")
         return
 
     # Получаем самое большое изображение
@@ -358,7 +358,7 @@ async def continue_post_creation(
 
     if not all([title, content, category_ids, post_city]):
         await message.answer(
-            "❌ Ошибка: не все данные поста заполнены. Попробуйте создать пост заново.",
+            "✖️ Ошибка: не все данные поста заполнены. Попробуйте создать пост заново.",
             reply_markup=get_main_keyboard(),
         )
         await state.clear()
@@ -380,13 +380,13 @@ async def continue_post_creation(
 
     if post:
         await message.answer(
-            f"✅ Пост создан и отправлен на модерацию в городе {post_city} в {len(category_ids)} категориях!",
+            f"☑️ Пост создан и отправлен на модерацию в городе {post_city} в {len(category_ids)} категориях!",
             reply_markup=get_main_keyboard(),
         )
         await state.clear()
     else:
         await message.answer(
-            "❌ Ошибка при создании поста. Попробуйте еще раз.",
+            "✖️ Ошибка при создании поста. Попробуйте еще раз.",
             reply_markup=get_main_keyboard(),
         )
         await state.clear()
