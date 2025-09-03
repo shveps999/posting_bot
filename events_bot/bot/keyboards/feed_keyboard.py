@@ -19,11 +19,11 @@ def get_feed_list_keyboard(
     if current_page > 0 or current_page < total_pages - 1:
         if current_page > 0:
             builder.button(
-                text="⬅️ Назад", callback_data=f"feed_prev_{current_page}_{total_pages}"
+                text="⬅ Назад", callback_data=f"feed_prev_{current_page}_{total_pages}"
             )
         if current_page < total_pages - 1:
             builder.button(
-                text="Вперед ➡️", callback_data=f"feed_next_{current_page}_{total_pages}"
+                text="Вперед ➡", callback_data=f"feed_next_{current_page}_{total_pages}"
             )
 
     # Кнопка "Главное меню" — всегда на отдельной строке
@@ -59,11 +59,11 @@ def get_liked_list_keyboard(
     if current_page > 0 or current_page < total_pages - 1:
         if current_page > 0:
             builder.button(
-                text="⬅️ Назад", callback_data=f"liked_prev_{current_page}_{total_pages}"
+                text="⬅ Назад", callback_data=f"liked_prev_{current_page}_{total_pages}"
             )
         if current_page < total_pages - 1:
             builder.button(
-                text="Вперед ➡️", callback_data=f"liked_next_{current_page}_{total_pages}"
+                text="Вперед ➡", callback_data=f"liked_next_{current_page}_{total_pages}"
             )
 
     # Главное меню — всегда внизу
@@ -100,11 +100,11 @@ def get_feed_post_keyboard(
     )
     if current_page > 0:
         builder.button(
-            text="⬅️ Назад", callback_data=f"feed_prev_{current_page}_{total_pages}"
+            text="⬅ Назад", callback_data=f"feed_prev_{current_page}_{total_pages}"
         )
     if current_page < total_pages - 1:
         builder.button(
-            text="Вперед ➡️", callback_data=f"feed_next_{current_page}_{total_pages}"
+            text="Вперед ➡", callback_data=f"feed_next_{current_page}_{total_pages}"
         )
     if url:
         builder.button(text="🔗 Подробнее", url=url)
@@ -132,11 +132,11 @@ def get_liked_post_keyboard(
     )
     if current_page > 0:
         builder.button(
-            text="⬅️ Назад", callback_data=f"liked_prev_{current_page}_{total_pages}"
+            text="⬅ Назад", callback_data=f"liked_prev_{current_page}_{total_pages}"
         )
     if current_page < total_pages - 1:
         builder.button(
-            text="Вперед ➡️", callback_data=f"liked_next_{current_page}_{total_pages}"
+            text="Вперед ➡", callback_data=f"liked_next_{current_page}_{total_pages}"
         )
     builder.button(text="🏠 Главное меню", callback_data="main_menu")
     builder.adjust(2, 2)
