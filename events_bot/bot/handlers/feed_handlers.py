@@ -209,7 +209,7 @@ def format_feed_list(posts, current_position_start: int, total_posts: int) -> st
         category_str = get_clean_category_string(post.categories)
         event_at = getattr(post, "event_at", None)
         event_str = _msk_str(event_at)
-        lines.append(f"{idx}. <b>{post.title}</b>")
+        lines.append(f"{idx}. {post.title}")
         lines.append(f"   📂 {category_str}")
         lines.append(f"   📅 {event_str}")
         lines.append("")
@@ -371,7 +371,7 @@ async def show_liked_page(callback: CallbackQuery, page: int, db):
     )
     if not posts:
         await callback.message.edit_text(
-            "📭 У вас пока нет избранных мероприятий", reply_markup=get_main_keyboard()
+            "❤️ У вас пока нет избранных мероприятий", reply_markup=get_main_keyboard()
         )
         return
     total_posts = await PostService.get_liked_posts_count(db, callback.from_user.id)
