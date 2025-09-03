@@ -3,6 +3,7 @@ from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.fsm.context import FSMContext
 from typing import Union
 import logfire
+from sqlalchemy import select
 from events_bot.database.services import PostService, UserService, CategoryService
 from events_bot.bot.states import PostStates
 from events_bot.bot.keyboards import (
