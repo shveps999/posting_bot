@@ -41,7 +41,7 @@ async def cmd_cancel_post(message: Message, state: FSMContext, db):
     logfire.info(f"Пользователь {message.from_user.id} отменил создание поста")
     await state.clear()
     await message.answer(
-        "Создание поста отменено ✖️", reply_markup=get_main_keyboard()
+        "Создание мероприятия отменено ✖️", reply_markup=get_main_keyboard()
     )
 
 
@@ -64,7 +64,7 @@ async def cancel_post_creation(callback: CallbackQuery, state: FSMContext, db):
     """Отмена создания поста"""
     await state.clear()
     await callback.message.edit_text(
-        "Создание поста мероприятия ✖️", reply_markup=get_main_keyboard()
+        "Создание мероприятия отменено ✖️", reply_markup=get_main_keyboard()
     )
     await callback.answer()
 
