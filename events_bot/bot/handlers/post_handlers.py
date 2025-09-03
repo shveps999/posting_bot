@@ -85,7 +85,7 @@ async def select_all_cities(callback: CallbackQuery, state: FSMContext, db):
     # Обновляем клавиатуру
     city_text = ", ".join(all_cities)
     await callback.message.edit_text(
-        f"🏙️ Выбранные города: {city_text}\n\nВыберите город для публикации мероприятия:",
+        f"📍 Выбранные города: {city_text}\n\nВыберите город для публикации мероприятия:",
         reply_markup=get_city_keyboard(for_post=True, selected_cities=all_cities)
     )
     await callback.answer("Все города выбраны!")
@@ -113,7 +113,7 @@ async def confirm_city_selection(callback: CallbackQuery, state: FSMContext, db)
     
     city_text = ", ".join(selected_cities)
     await callback.message.edit_text(
-        f"📍 Города выбраны: {city_text}\n\n📂 Теперь выберите категории мероприятия:",
+        f"📍 Города выбраны: {city_text}\n\n⭐️ Теперь выберите категории мероприятия:",
         reply_markup=get_category_selection_keyboard(all_categories, for_post=True),
     )
     await state.set_state(PostStates.waiting_for_category_selection)
@@ -249,7 +249,7 @@ async def process_post_url(message: Message, state: FSMContext, db):
         return
     await state.update_data(url=url)
     await message.answer(
-        "⏰ Введите дату и время события в формате ДД.ММ.ГГГГ ЧЧ:ММ (например, 25.12.2025 18:30)\n\n"
+        "🗓 Введите дату и время события в формате ДД.ММ.ГГГГ ЧЧ:ММ (например, 25.12.2025 18:30)\n\n"
         "🕐 Время указывайте по московскому часовому поясу (МСК)\n"
         "⚠️ Время должно быть в будущем!\n"
     )
@@ -380,7 +380,7 @@ async def continue_post_creation(
 
     if post:
         await message.answer(
-            f"☑️ Пост создан и отправлен на модерацию в городе {post_city} в {len(category_ids)} категориях!",
+            f"Пост создан и отправлен на модерацию ☑️",
             reply_markup=get_main_keyboard(),
         )
         await state.clear()
