@@ -48,7 +48,7 @@ def get_category_selection_keyboard(
 
     if for_post:
         buttons.append(
-            InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_post")
+            InlineKeyboardButton(text="Отмена ✖️", callback_data="cancel_post")
         )
 
     buttons.append(
