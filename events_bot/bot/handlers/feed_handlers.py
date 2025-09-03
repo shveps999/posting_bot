@@ -193,17 +193,14 @@ def format_post_for_feed(
     event_at = getattr(post, "event_at", None)
     event_str = _msk_str(event_at)
     return (
-        f"📰 Пост\n\n"
-        f"📝 <b>{post.title}</b>\n\n"
+        f"⭐️ Категории: {category_str}\n"
+        f"<b>{post.title}</b>\n\n"
+        f"• {event_str}\n"
         f"{post.content}\n\n"
-        f"👤 Автор: {author_name}\n"
-        f"🏙️ Город: {post_city}\n"
-        f"📂 Категории: {category_str}\n"
-        f"📅 Событие: {event_str} (МСК)\n"
         if event_str
         else ""
         f"💖 Сердечек: {likes_count}\n\n"
-        f"📊 {current_position} из {total_posts} постов"
+        f"{current_position} из {total_posts} постов"
     )
 
 
