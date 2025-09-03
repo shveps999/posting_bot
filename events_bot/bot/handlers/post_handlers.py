@@ -144,7 +144,7 @@ async def process_post_city_selection(callback: CallbackQuery, state: FSMContext
     # Обновляем клавиатуру
     city_text = ", ".join(selected_cities) if selected_cities else "не выбраны"
     await callback.message.edit_text(
-        f"📍 Выбранные города: {city_text}\n\nВыберите города для публикации поста:",
+        f"📍 Выбранные города: {city_text}",
         reply_markup=get_city_keyboard(for_post=True, selected_cities=selected_cities)
     )
     await callback.answer()
