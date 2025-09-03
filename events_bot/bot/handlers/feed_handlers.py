@@ -208,7 +208,7 @@ def format_post_for_feed(
 
 def format_feed_list(posts, current_position_start: int, total_posts: int) -> str:
     """Формат списка кратких карточек 4-5 постов (лента)"""
-    lines = ["Актуальные мероприятия", ""]
+    lines = ["Подборка актуальных мероприятий", ""]
     for idx, post in enumerate(posts, start=current_position_start):
         # Получаем чистые названия категорий без эмодзи
         category_str = get_clean_category_string(post.categories)
@@ -224,7 +224,7 @@ def format_feed_list(posts, current_position_start: int, total_posts: int) -> st
 
 def format_liked_list(posts, current_position_start: int, total_posts: int) -> str:
     """Формат списка кратких карточек 4-5 постов (избранное)"""
-    lines = ["❤️ Ваши избранные мероприятия", ""]
+    lines = ["Избранные мероприятия", ""]
     for idx, post in enumerate(posts, start=current_position_start):
         # Получаем чистые названия категорий без эмодзи
         category_str = get_clean_category_string(post.categories)
