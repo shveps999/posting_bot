@@ -21,7 +21,7 @@ def get_city_keyboard(for_post: bool = False, selected_cities: list = None) -> I
     if for_post:
         for city in cities:
             is_selected = city in selected_cities
-            checkbox = "📍" if is_selected
+            checkbox = "📍" if is_selected else ""
             text = f"{city} {checkbox}"
             builder.button(text=text, callback_data=f"{prefix}{city}")
         
