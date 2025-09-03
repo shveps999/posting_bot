@@ -203,7 +203,7 @@ async def receive_moderator_comment(message: Message, state: FSMContext, db):
             try:
                 await message.bot.send_message(
                     chat_id=post.author_id,
-                    text=f"Ваше мероприятие «{post.title}» отклонено 🥲\n\n Комментарий модератора: {comment}",
+                    text=f"Ваше мероприятие «{post.title}» отклонено. Пожалуйста, создайте его заного с учетом указанных изменений 🥲\n\nКомментарий модератора: {comment}",
                 )
             except Exception:
                 pass
@@ -221,7 +221,7 @@ async def receive_moderator_comment(message: Message, state: FSMContext, db):
             try:
                 await message.bot.send_message(
                     chat_id=post.author_id,
-                    text=f"Ваше мероприятие «{post.title}» требует изменений ✍️🧐\n\n Комментарий модератора: {comment}",
+                    text=f"Ваше мероприятие «{post.title}» требует изменений. Пожалуйста, создайте его заного с учетом указанных изменений ✍️🧐\n\nКомментарий модератора: {comment}",
                 )
             except Exception:
                 pass
