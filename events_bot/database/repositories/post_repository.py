@@ -69,6 +69,7 @@ class PostRepository:
                 )
             )
             .options(selectinload(Post.author), selectinload(Post.categories))
+            .order_by(Post.event_at.is_(None), Post.event_at.asc())  # ✅ Сортировка по дате события
         )
         return result.scalars().all()
 
@@ -90,6 +91,7 @@ class PostRepository:
                 )
             )
             .options(selectinload(Post.author), selectinload(Post.categories))
+            .order_by(Post.event_at.is_(None), Post.event_at.asc())  # ✅ Сортировка по дате события
         )
         return result.scalars().all()
 
@@ -219,7 +221,7 @@ class PostRepository:
                 )
             )
             .options(selectinload(Post.author), selectinload(Post.categories))
-            .order_by(Post.published_at.desc())
+            .order_by(Post.event_at.is_(None), Post.event_at.asc())  # ✅ Главное изменение
             .limit(limit)
             .offset(offset)
         )
@@ -276,7 +278,7 @@ class PostRepository:
                 )
             )
             .options(selectinload(Post.author), selectinload(Post.categories))
-            .order_by(Post.published_at.desc())
+            .order_by(Post.event_at.is_(None), Post.event_at.asc())  # ✅ Сортировка по дате события
             .limit(limit)
             .offset(offset)
         )
