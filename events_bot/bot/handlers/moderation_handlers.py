@@ -158,14 +158,18 @@ async def process_moderation_action(callback: CallbackQuery, state: FSMContext, 
                     chat_id=post.author_id,
                     text=f"Ваше мероприятие «{post.title}» одобрено и опубликовано 🤟😌",
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logfire.error(f"Не удалось отправить сообщение автору {post.author_id}: {e}")
 
             await callback.answer("Ваше мероприятие одобрено и опубликовано 🤟😌")
             await callback.message.delete()
+            # ✅ Отправляем главное меню
+            await callback.message.answer("Выберите действие:", reply_markup=get_main_keyboard())
         else:
             logfire.error(f"Ошибка при одобрении поста {post_id}")
             await callback.answer("❌ Ошибка при одобрении поста")
+            # ✅ Отправляем главное меню даже при ошибке
+            await callback.message.answer("Выберите действие:", reply_markup=get_main_keyboard())
 
     elif action == "reject":
         # спрашиваем комментарий у модератора, сохраняя post_id и тип действия
@@ -196,6 +200,8 @@ async def receive_moderator_comment(message: Message, state: FSMContext, db):
     if not post_id:
         await message.answer("Не удалось определить пост. Попробуйте снова.")
         await state.clear()
+        # ✅ Главное меню
+        await message.answer("Выберите действие:", reply_markup=get_main_keyboard())
         return
 
     if pending_action == "reject":
@@ -207,7 +213,7 @@ async def receive_moderator_comment(message: Message, state: FSMContext, db):
                     chat_id=post.author_id,
                     text=f"Ваше мероприятие «{post.title}» отклонено. Пожалуйста, создайте его заного с учетом указанного комментария 🥲\n\n"
                          f"<b>Комментарий модератора:</b> {comment}",
-                    parse_mode="HTML"  # ✅ Включаем HTML-разметку
+                    parse_mode="HTML"
                 )
             except Exception as e:
                 logfire.error(f"Не удалось отправить сообщение автору {post.author_id}: {e}")
@@ -226,7 +232,7 @@ async def receive_moderator_comment(message: Message, state: FSMContext, db):
                     chat_id=post.author_id,
                     text=f"Ваше мероприятие «{post.title}» требует изменений. Пожалуйста, создайте его заного с учетом указанного комментария ✍️🧐\n\n"
                          f"<b>Комментарий модератора:</b> {comment}",
-                    parse_mode="HTML"  # ✅ Включаем HTML-разметку
+                    parse_mode="HTML"
                 )
             except Exception as e:
                 logfire.error(f"Не удалось отправить сообщение автору {post.author_id}: {e}")
@@ -234,3 +240,5 @@ async def receive_moderator_comment(message: Message, state: FSMContext, db):
             await message.answer("❌ Ошибка при запросе изменений")
     
     await state.clear()
+    # ✅ После завершения — главное меню
+    await message.answer("Выберите действие:", reply_markup=get_main_keyboard())
