@@ -58,9 +58,9 @@ class NotificationService:
         event_line = f"Событие: {event_str} (МСК)" if event_str else ""
 
         return (
-            f"Новый пост в категориях '{category_str}'\n\n"
-            f"{post.title}\n\n"
+            f"⭐️ <i>{category_str}</i>\n"
+            f"<b>{post.title}</b>\n\n"
+            f"<i>• {event_str}</i>\n"
+            f"<i>• {getattr(post, 'address', 'Не указан')}</i>\n\n"
             f"{post.content}\n\n"
-            f"Автор: {author_name}\n"
-            f"{event_line}"
         )
