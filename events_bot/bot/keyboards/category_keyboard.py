@@ -48,11 +48,11 @@ def get_category_selection_keyboard(
 
     if for_post:
         buttons.append(
-            InlineKeyboardButton(text="Отмена", callback_data="cancel_post")
+            InlineKeyboardButton(text="Отменить", callback_data="cancel_post")
         )
 
     buttons.append(
-        InlineKeyboardButton(text="Подтвердить ☑️", callback_data=confirm_callback)
+        InlineKeyboardButton(text="Подтвердить", callback_data=confirm_callback)
     )
 
     # Добавляем обе кнопки в одну строку
