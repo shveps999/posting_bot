@@ -193,9 +193,9 @@ def format_post_for_feed(
     event_at = getattr(post, "event_at", None)
     event_str = _msk_str(event_at)
     return (
-        f"⭐️ Категории: {category_str}\n"
+        f"⭐️ <i>{category_str}</i>\n\n"
         f"<b>{post.title}</b>\n\n"
-        f"• {event_str}\n"
+        f"• {event_str}\n\n"
         f"{post.content}\n\n"
         if event_str
         else ""
