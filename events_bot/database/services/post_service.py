@@ -25,6 +25,7 @@ class PostService:
         image_id: str | None = None,
         event_at: str | None = None,
         url: str | None = None,
+        address: str | None = None,
     ) -> Post:
         """Создать новый пост"""
         parsed_event_at = None
@@ -39,7 +40,6 @@ class PostService:
                         tzinfo=None
                     )
                 # Если время без tzinfo, то оно уже должно быть в UTC
-                # (так как обработчик переводит в UTC перед сохранением в ISO)
             except Exception:
                 parsed_event_at = None
         return await PostRepository.create_post(
@@ -52,6 +52,7 @@ class PostService:
             image_id,
             parsed_event_at,
             url,
+            address,
         )
 
     @staticmethod
@@ -65,6 +66,7 @@ class PostService:
         image_id: str | None = None,
         event_at: str | None = None,
         url: str | None = None,
+        address: str | None = None,
         bot=None,
     ) -> Post:
         """Создать пост и отправить на модерацию"""
@@ -88,6 +90,7 @@ class PostService:
             image_id,
             parsed_event_at,
             url,
+            address,
         )
 
         # Отправляем на модерацию
