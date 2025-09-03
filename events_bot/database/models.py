@@ -120,6 +120,8 @@ class Post(Base, TimestampMixin):
     # Дата и время события/актуальности поста.
     # После наступления этого времени пост скрывается и удаляется
     event_at: Mapped[Optional[DateTime]] = mapped_column(DateTime, nullable=True)
+    # Адрес мероприятия
+    address: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
 
     # Связи
     author: Mapped[User] = relationship(back_populates="posts")
