@@ -314,15 +314,30 @@ async def process_event_datetime(message: Message, state: FSMContext, db):
             # Сохраняем в ISO (с таймзоной +00:00)
             await state.update_data(event_at=event_dt.isoformat())
             await message.answer(
-                "🌌 Отправьте изображение для мероприятия (или нажмите /skip для пропуска):"
+                "Введите адрес мероприятия:"
             )
-            await state.set_state(PostStates.waiting_for_image)
+            await state.set_state(PostStates.waiting_for_address)
             return
         except ValueError:
             continue
     await message.answer(
         "✖️ Неверный формат. Пример: 25.12.2025 18:30. Попробуйте снова."
     )
+
+
+@router.message(PostStates.waiting_for_address)
+async def process_post_address(message: Message, state: FSMContext, db):
+    """Обработка адреса мероприятия"""
+    address = message.text.strip()
+    if len(address) > 200:
+        await message.answer("✖️ Адрес слишком длинный. Максимум 200 символов.")
+        return
+
+    await state.update_data(address=address)
+    await message.answer(
+        "🌌 Отправьте изображение для мероприятия (или нажмите /skip для пропуска):"
+    )
+    await state.set_state(PostStates.waiting_for_image)
 
 
 @router.message(PostStates.waiting_for_image)
@@ -373,6 +388,7 @@ async def continue_post_creation(
     image_id = data.get("image_id")
     event_at_iso = data.get("event_at")
     url = data.get("url")
+    address = data.get("address")  # ✅ Новый параметр
 
     if not all([title, content, category_ids, post_city]):
         await message.answer(
@@ -393,6 +409,7 @@ async def continue_post_creation(
         image_id=image_id,
         event_at=event_at_iso,
         url=url,
+        address=address,  # ✅ Передаём адрес
         bot=message.bot,
     )
 
