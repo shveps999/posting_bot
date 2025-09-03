@@ -221,6 +221,7 @@ class PostRepository:
                 )
             )
             .options(selectinload(Post.author), selectinload(Post.categories))
+            .group_by(Post.id)
             .order_by(Post.event_at.is_(None), Post.event_at.asc())  # ✅ Главное изменение
             .limit(limit)
             .offset(offset)
