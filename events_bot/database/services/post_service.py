@@ -134,6 +134,7 @@ class PostService:
                         photo=media_photo.media,
                         caption=moderation_text,
                         reply_markup=moderation_keyboard,
+                        parse_mode="HTML",  # ✅ Добавлен parse_mode
                     )
                     logfire.info("Пост с изображением отправлен на модерацию")
                     return
@@ -146,6 +147,7 @@ class PostService:
                 chat_id=moderation_group_id,
                 text=moderation_text,
                 reply_markup=moderation_keyboard,
+                parse_mode="HTML",  # ✅ Добавлен parse_mode
             )
             logfire.info("Пост без изображения отправлен на модерацию")
         except Exception as e:
