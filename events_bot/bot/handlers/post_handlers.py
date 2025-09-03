@@ -5,6 +5,7 @@ from typing import Union
 import logfire
 from sqlalchemy import select
 from events_bot.database.services import PostService, UserService, CategoryService
+from events_bot.database.models import Category
 from events_bot.bot.states import PostStates
 from events_bot.bot.keyboards import (
     get_main_keyboard,
