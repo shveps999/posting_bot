@@ -10,5 +10,6 @@ class PostStates(StatesGroup):
     waiting_for_title = State()
     waiting_for_content = State()
     waiting_for_image = State()
+    waiting_for_address = State()
     waiting_for_url = State()
     waiting_for_event_datetime = State()
