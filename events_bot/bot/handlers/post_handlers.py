@@ -53,7 +53,7 @@ async def start_create_post(callback: CallbackQuery, state: FSMContext, db):
 
     # Сначала предлагаем выбрать города
     await callback.message.edit_text(
-        "Выберите город для поста:", reply_markup=get_city_keyboard(for_post=True)
+        "Выберите город для публикации мероприятия:", reply_markup=get_city_keyboard(for_post=True)
     )
     await state.set_state(PostStates.waiting_for_city_selection)
     await callback.answer()
@@ -85,7 +85,7 @@ async def select_all_cities(callback: CallbackQuery, state: FSMContext, db):
     # Обновляем клавиатуру
     city_text = ", ".join(all_cities)
     await callback.message.edit_text(
-        f"📍 Выбранные города: {city_text}\n\nВыберите город для публикации мероприятия:",
+        f"Выберите город для публикации мероприятия: 📍 Выбранные города: {city_text}\n\n",
         reply_markup=get_city_keyboard(for_post=True, selected_cities=all_cities)
     )
     await callback.answer("Все города выбраны!")
