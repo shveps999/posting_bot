@@ -193,7 +193,7 @@ def format_post_for_feed(
     event_at = getattr(post, "event_at", None)
     event_str = _msk_str(event_at)
     return (
-        f"⭐️ <i>{category_str}</i>\n\n"
+        f"⭐️ <i>{category_str}</i>\n"
         f"<b>{post.title}</b>\n\n"
         f"<i>• {event_str}</i>\n\n"
         f"{post.content}\n\n"
@@ -214,9 +214,9 @@ def format_feed_list(posts, current_position_start: int, total_posts: int) -> st
         event_str = _msk_str(event_at)
         lines.append(f"{idx}. <b>{post.title}</b>")
         lines.append(f"<i>   ⭐️ {category_str}</i>")
-        lines.append(f"   📅 {event_str}")
+        lines.append(f"   🗓 {event_str}")
         lines.append("")
-    lines.append("Нажмите 'Подробнее' под списком")
+    lines.append("Нажмите на число, чтобы смотреть событие подробнее")
     return "\n".join(lines)
 
 
@@ -230,10 +230,10 @@ def format_liked_list(posts, current_position_start: int, total_posts: int) -> s
         event_str = _msk_str(event_at)
         lines.append(f"{idx}. <b>{post.title}</b>")
         lines.append(f"<i>   ⭐️ {category_str}</i>")
-        lines.append(f"   📅 {event_str}")
+        lines.append(f"   🗓 {event_str}")
         lines.append("")
     lines.append(f"Всего: {total_posts} в избранном")
-    lines.append("Нажмите 'Подробнее' под списком")
+    lines.append("Нажмите на число, чтобы смотреть событие подробнее")
     return "\n".join(lines)
 
 
