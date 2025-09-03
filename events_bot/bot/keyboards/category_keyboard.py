@@ -43,12 +43,18 @@ def get_category_selection_keyboard(
 
     confirm_callback = "confirm_post_categories" if for_post else "confirm_categories"
 
-    buttons = [InlineKeyboardButton(text="Подтвердить", callback_data=confirm_callback)]
+    # Создаём список кнопок: сначала "Отмена", потом "Подтвердить"
+    buttons = []
 
     if for_post:
         buttons.append(
             InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_post")
         )
 
+    buttons.append(
+        InlineKeyboardButton(text="Подтвердить", callback_data=confirm_callback)
+    )
+
+    # Добавляем обе кнопки в одну строку
     builder.row(*buttons)
     return builder.as_markup()
