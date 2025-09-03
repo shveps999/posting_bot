@@ -96,13 +96,13 @@ async def show_feed_page_cmd(message: Message, page: int, db):
         logfire.info(f"Пользователь {message.from_user.id} — в ленте нет постов")
         await message.answer(
             "📮 <b>Смотреть подборку</b>\n\n"
-                "В подборке пока нет мероприятий по вашим категориям.\n\n"
-                "Что можно сделать:\n"
-                "• Выбрать другие категории\n"
-                "• Создать своё мероприятие\n"
-                "• Дождаться появления в подборке новых мероприятий",
-                reply_markup=get_main_keyboard(),
-                parse_mode="HTML"
+            "В подборке пока нет мероприятий по вашим категориям.\n\n"
+            "Что можно сделать:\n"
+            "• Выбрать другие категории\n"
+            "• Создать своё мероприятие\n"
+            "• Дождаться появления в подборке новых мероприятий",
+            reply_markup=get_main_keyboard(),
+            parse_mode="HTML"
         )
         return
     # Получаем общее количество постов для пагинации
@@ -112,9 +112,10 @@ async def show_feed_page_cmd(message: Message, page: int, db):
     for post in posts:
         await db.refresh(post, attribute_names=["categories"])
     preview_text = format_feed_list(posts, page * POSTS_PER_PAGE + 1, total_posts)
+    start_index = page * POSTS_PER_PAGE + 1
     await message.answer(
         preview_text,
-        reply_markup=get_feed_list_keyboard(posts, page, total_pages),
+        reply_markup=get_feed_list_keyboard(posts, page, total_pages, start_index=start_index),
         parse_mode="HTML",
     )
 
@@ -153,10 +154,11 @@ async def show_feed_page(callback: CallbackQuery, page: int, db):
     for post in posts:
         await db.refresh(post, attribute_names=["categories"])
     preview_text = format_feed_list(posts, page * POSTS_PER_PAGE + 1, total_posts)
+    start_index = page * POSTS_PER_PAGE + 1
     try:
         await callback.message.edit_text(
             preview_text,
-            reply_markup=get_feed_list_keyboard(posts, page, total_pages),
+            reply_markup=get_feed_list_keyboard(posts, page, total_pages, start_index=start_index),
             parse_mode="HTML",
         )
     except TelegramBadRequest as e:
@@ -401,10 +403,12 @@ async def show_liked_page(callback: CallbackQuery, page: int, db):
         return
     total_posts = await PostService.get_liked_posts_count(db, callback.from_user.id)
     total_pages = (total_posts + POSTS_PER_PAGE - 1) // POSTS_PER_PAGE
-    text = format_liked_list(posts, page + 1, total_posts)
+    start_index = page * POSTS_PER_PAGE + 1
+    text = format_liked_list(posts, start_index, total_posts)
     try:
         await callback.message.edit_text(
-            text, reply_markup=get_liked_list_keyboard(posts, page, total_pages),
+            text,
+            reply_markup=get_liked_list_keyboard(posts, page, total_pages, start_index=start_index),
             parse_mode="HTML"
         )
     except TelegramBadRequest as e:
