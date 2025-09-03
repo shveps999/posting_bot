@@ -95,11 +95,13 @@ async def show_feed_page_cmd(message: Message, page: int, db):
     if not posts:
         logfire.info(f"Пользователь {message.from_user.id} — в ленте нет постов")
         await message.answer(
-            "📮 В ленте пока нет мероприятий по вашим категориям.\n\n"
-            "Попробуйте:\n"
-            "• Выбрать другие категории\n"
-            "• Создать свое мероприятие",
+            "📮 <b>Актуальные мероприятия</b>\n\n"
+            "Пока нет событий по вашим интересам.\n\n"
+            "Что можно сделать:\n"
+            "• 📌 Выбрать другие категории\n"
+            "• 🎉 Создать своё мероприятие",
             reply_markup=get_main_keyboard(),
+            parse_mode="HTML"
         )
         return
     # Получаем общее количество постов для пагинации
@@ -129,11 +131,13 @@ async def show_feed_page(callback: CallbackQuery, page: int, db):
         logfire.info(f"Пользователь {callback.from_user.id} — в ленте нет постов")
         try:
             await callback.message.edit_text(
-                "📮 В ленте пока нет мероприятий по вашим категориям.\n\n"
-                "Попробуйте:\n"
-                "• Выбрать другие категории\n"
-                "• Создать свое мероприятие",
+                "📮 <b>Актуальные мероприятия</b>\n\n"
+                "Пока нет событий по вашим интересам.\n\n"
+                "Что можно сделать:\n"
+                "• 📌 Выбрать другие категории\n"
+                "• 🎉 Создать своё мероприятие",
                 reply_markup=get_main_keyboard(),
+                parse_mode="HTML"
             )
         except TelegramBadRequest as e:
             if "message is not modified" in str(e):
@@ -202,8 +206,8 @@ def format_post_for_feed(
 
 
 def format_feed_list(posts, current_position_start: int, total_posts: int) -> str:
-    """Формат списка кратких карточек 4-5 постов"""
-    lines = ["Актуальные мероприятия", ""]
+    """Формат списка кратких карточек 4-5 постов (лента)"""
+    lines = ["<b>Актуальные мероприятия</b>", ""]
     for idx, post in enumerate(posts, start=current_position_start):
         # Получаем чистые названия категорий без эмодзи
         category_str = get_clean_category_string(post.categories)
@@ -213,7 +217,24 @@ def format_feed_list(posts, current_position_start: int, total_posts: int) -> st
         lines.append(f"   📂 {category_str}")
         lines.append(f"   📅 {event_str}")
         lines.append("")
-    lines.append(f"Всего постов: {total_posts}")
+    lines.append(f"Всего: {total_posts} мероприятий")
+    lines.append("Нажмите 'Подробнее' под списком")
+    return "\n".join(lines)
+
+
+def format_liked_list(posts, current_position_start: int, total_posts: int) -> str:
+    """Формат списка кратких карточек 4-5 постов (избранное)"""
+    lines = ["<b>❤️ Ваши избранные мероприятия</b>", ""]
+    for idx, post in enumerate(posts, start=current_position_start):
+        # Получаем чистые названия категорий без эмодзи
+        category_str = get_clean_category_string(post.categories)
+        event_at = getattr(post, "event_at", None)
+        event_str = _msk_str(event_at)
+        lines.append(f"{idx}. {post.title}")
+        lines.append(f"   📂 {category_str}")
+        lines.append(f"   📅 {event_str}")
+        lines.append("")
+    lines.append(f"Всего: {total_posts} в избранном")
     lines.append("Нажмите 'Подробнее' под списком")
     return "\n".join(lines)
 
@@ -371,12 +392,18 @@ async def show_liked_page(callback: CallbackQuery, page: int, db):
     )
     if not posts:
         await callback.message.edit_text(
-            "❤️ У вас пока нет избранных мероприятий", reply_markup=get_main_keyboard()
+            "❤️ <b>Ваши избранные мероприятия</b>\n\n"
+            "Пока ничего не добавлено.\n\n"
+            "Чтобы добавить:\n"
+            "• 👉 Найдите интересное событие в ленте\n"
+            "• ❤️ Нажмите сердечко под постом",
+            reply_markup=get_main_keyboard(),
+            parse_mode="HTML"
         )
         return
     total_posts = await PostService.get_liked_posts_count(db, callback.from_user.id)
     total_pages = (total_posts + POSTS_PER_PAGE - 1) // POSTS_PER_PAGE
-    text = format_feed_list(posts, page + 1, total_posts)
+    text = format_liked_list(posts, page + 1, total_posts)
     try:
         await callback.message.edit_text(
             text, reply_markup=get_liked_list_keyboard(posts, page, total_pages)
