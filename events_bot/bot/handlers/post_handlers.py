@@ -30,7 +30,7 @@ async def cmd_create_post(message: Message, state: FSMContext, db):
 
     # Сначала предлагаем выбрать города
     await message.answer(
-        "🏙️ Выберите город для поста:", reply_markup=get_city_keyboard(for_post=True)
+        "📍 Выберите город для поста:", reply_markup=get_city_keyboard(for_post=True)
     )
     await state.set_state(PostStates.waiting_for_city_selection)
 
