@@ -21,14 +21,16 @@ class PostRepository:
         image_id: str | None = None,
         event_at: datetime | None = None,
         url: str | None = None,
+        address: str | None = None,
     ) -> Post:
+        """Создать новый пост с категориями и адресом"""
         # Получаем объекты категорий
         categories_result = await db.execute(
             select(Category).where(Category.id.in_(category_ids))
         )
         category_objs = categories_result.scalars().all()
 
-        # Создаем пост с категориями
+        # Создаем пост с категориями и адресом
         post = Post(
             title=title,
             content=content,
@@ -37,6 +39,7 @@ class PostRepository:
             image_id=image_id,
             event_at=event_at,
             url=url,
+            address=address,  # ✅ Добавлено поле адреса
             categories=category_objs,
         )
         db.add(post)
@@ -46,6 +49,7 @@ class PostRepository:
 
     @staticmethod
     async def get_pending_moderation(db: AsyncSession) -> List[Post]:
+        """Получить посты, ожидающие модерации"""
         result = await db.execute(
             select(Post)
             .where(and_(Post.is_approved == False, Post.is_published == False))
@@ -55,6 +59,7 @@ class PostRepository:
 
     @staticmethod
     async def get_approved_posts(db: AsyncSession) -> List[Post]:
+        """Получить одобренные и опубликованные посты (включая актуальные по event_at)"""
         result = await db.execute(
             select(Post)
             .where(
@@ -71,6 +76,7 @@ class PostRepository:
     async def get_posts_by_categories(
         db: AsyncSession, category_ids: List[int]
     ) -> List[Post]:
+        """Получить посты по списку категорий (актуальные и опубликованные)"""
         result = await db.execute(
             select(Post)
             .distinct()
@@ -91,6 +97,7 @@ class PostRepository:
     async def approve_post(
         db: AsyncSession, post_id: int, moderator_id: int, comment: str = None
     ) -> Post:
+        """Одобрить пост и добавить запись в модерацию"""
         result = await db.execute(select(Post).where(Post.id == post_id))
         post = result.scalar_one_or_none()
         if post:
@@ -100,7 +107,7 @@ class PostRepository:
             moderation_record = ModerationRecord(
                 post_id=post_id,
                 moderator_id=moderator_id,
-                action=ModerationAction.APPROVE,
+                action=ModerationAction.APPROVE.value,
                 comment=comment,
             )
             db.add(moderation_record)
@@ -112,6 +119,7 @@ class PostRepository:
     async def reject_post(
         db: AsyncSession, post_id: int, moderator_id: int, comment: str = None
     ) -> Post:
+        """Отклонить пост и добавить запись в модерацию"""
         result = await db.execute(select(Post).where(Post.id == post_id))
         post = result.scalar_one_or_none()
         if post:
@@ -120,7 +128,7 @@ class PostRepository:
             moderation_record = ModerationRecord(
                 post_id=post_id,
                 moderator_id=moderator_id,
-                action=ModerationAction.REJECT,
+                action=ModerationAction.REJECT.value,
                 comment=comment,
             )
             db.add(moderation_record)
@@ -132,13 +140,14 @@ class PostRepository:
     async def request_changes(
         db: AsyncSession, post_id: int, moderator_id: int, comment: str = None
     ) -> Post:
+        """Запросить изменения в посте и добавить запись в модерацию"""
         result = await db.execute(select(Post).where(Post.id == post_id))
         post = result.scalar_one_or_none()
         if post:
             moderation_record = ModerationRecord(
                 post_id=post_id,
                 moderator_id=moderator_id,
-                action=ModerationAction.REQUEST_CHANGES,
+                action=ModerationAction.REQUEST_CHANGES.value,
                 comment=comment,
             )
             db.add(moderation_record)
@@ -148,6 +157,7 @@ class PostRepository:
 
     @staticmethod
     async def get_user_posts(db: AsyncSession, user_id: int) -> List[Post]:
+        """Получить все посты пользователя"""
         result = await db.execute(
             select(Post)
             .where(Post.author_id == user_id)
@@ -157,6 +167,7 @@ class PostRepository:
 
     @staticmethod
     async def get_post_by_id(db: AsyncSession, post_id: int) -> Optional[Post]:
+        """Получить пост по ID с автором и категориями"""
         result = await db.execute(
             select(Post)
             .where(Post.id == post_id)
@@ -166,6 +177,7 @@ class PostRepository:
 
     @staticmethod
     async def publish_post(db: AsyncSession, post_id: int) -> Post:
+        """Опубликовать пост (установить is_published=True)"""
         result = await db.execute(select(Post).where(Post.id == post_id))
         post = result.scalar_one_or_none()
         if post:
@@ -249,6 +261,7 @@ class PostRepository:
     async def get_liked_posts(
         db: AsyncSession, user_id: int, limit: int = 10, offset: int = 0
     ) -> List[Post]:
+        """Получить посты, которые понравились пользователю"""
         from ..models import Like
 
         result = await db.execute(
@@ -271,6 +284,7 @@ class PostRepository:
 
     @staticmethod
     async def get_liked_posts_count(db: AsyncSession, user_id: int) -> int:
+        """Получить количество постов, которые понравились пользователю"""
         from ..models import Like
 
         result = await db.execute(
@@ -305,6 +319,7 @@ class PostRepository:
         post_ids = [pid for pid in expired_posts.scalars().all()]
         if not post_ids:
             return 0
+        
         # Удаляем связанные лайки
         await db.execute(Like.__table__.delete().where(Like.post_id.in_(post_ids)))
         # Удаляем записи модерации
