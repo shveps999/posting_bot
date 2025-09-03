@@ -3,14 +3,14 @@ from aiogram.types import InlineKeyboardMarkup
 
 
 def get_feed_list_keyboard(
-    posts, current_page: int, total_pages: int
+    posts, current_page: int, total_pages: int, start_index: int = 1
 ) -> InlineKeyboardMarkup:
     """Клавиатура списка постов (подборка)"""
     builder = InlineKeyboardBuilder()
-    for post in posts:
+    for idx, post in enumerate(posts, start=start_index):
         builder.button(
-            text=f"Подробнее: {post.title[:28]}",
-            callback_data=f"feed_open_{post.id}_{current_page}_{total_pages}",
+            text=f"{idx}",  # Только номер
+            callback_data=f"feed_open_{post.id}_{current_page}_{total_pages}"
         )
     # Навигация
     if current_page > 0:
@@ -22,7 +22,7 @@ def get_feed_list_keyboard(
             text="Вперед ➡️", callback_data=f"feed_next_{current_page}_{total_pages}"
         )
     builder.button(text="🏠 Главное меню", callback_data="main_menu")
-    builder.adjust(1, 2, 1)
+    builder.adjust(1)  # Каждая кнопка — на отдельной строке
     return builder.as_markup()
 
 
@@ -62,13 +62,14 @@ def get_feed_post_keyboard(
 
 
 def get_liked_list_keyboard(
-    posts, current_page: int, total_pages: int
+    posts, current_page: int, total_pages: int, start_index: int = 1
 ) -> InlineKeyboardMarkup:
+    """Клавиатура списка избранных постов"""
     builder = InlineKeyboardBuilder()
-    for post in posts:
+    for idx, post in enumerate(posts, start=start_index):
         builder.button(
-            text=f"Подробнее: {post.title[:28]}",
-            callback_data=f"liked_open_{post.id}_{current_page}_{total_pages}",
+            text=f"{idx}",  # Только номер
+            callback_data=f"liked_open_{post.id}_{current_page}_{total_pages}"
         )
     if current_page > 0:
         builder.button(
@@ -79,7 +80,7 @@ def get_liked_list_keyboard(
             text="Вперед ➡️", callback_data=f"liked_next_{current_page}_{total_pages}"
         )
     builder.button(text="🏠 Главное меню", callback_data="main_menu")
-    builder.adjust(1, 2, 1)
+    builder.adjust(1)
     return builder.as_markup()
 
 
