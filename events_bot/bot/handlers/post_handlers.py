@@ -85,7 +85,7 @@ async def select_all_cities(callback: CallbackQuery, state: FSMContext, db):
     # Обновляем клавиатуру
     city_text = ", ".join(all_cities)
     await callback.message.edit_text(
-        f"Выберите город для публикации мероприятия: 📍 Выбранные города: {city_text}\n\n",
+        f"📍 Выбранные города: {city_text}\n\n",
         reply_markup=get_city_keyboard(for_post=True, selected_cities=all_cities)
     )
     await callback.answer("Все города выбраны!")
