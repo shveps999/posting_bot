@@ -32,7 +32,7 @@ def get_category_selection_keyboard(
 
     for category in categories:
         is_selected = category.id in selected_ids
-        checkbox = "⭐" if is_selected else "▫️"
+        checkbox = "🟠" if is_selected else "⚪️"
 
         # Используем display_name для UI (с эмодзи), fallback на name
         display_name = getattr(category, "display_name", None) or category.name
