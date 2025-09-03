@@ -207,30 +207,29 @@ def format_post_for_feed(
 
 def format_feed_list(posts, current_position_start: int, total_posts: int) -> str:
     """Формат списка кратких карточек 4-5 постов (лента)"""
-    lines = ["<b>Актуальные мероприятия</b>", ""]
+    lines = ["Актуальные мероприятия", ""]
     for idx, post in enumerate(posts, start=current_position_start):
         # Получаем чистые названия категорий без эмодзи
         category_str = get_clean_category_string(post.categories)
         event_at = getattr(post, "event_at", None)
         event_str = _msk_str(event_at)
-        lines.append(f"{idx}. {post.title}")
+        lines.append(f"{idx}. <b>{post.title}</b>")
         lines.append(f"   📂 {category_str}")
         lines.append(f"   📅 {event_str}")
         lines.append("")
-    lines.append(f"Всего: {total_posts} мероприятий")
     lines.append("Нажмите 'Подробнее' под списком")
     return "\n".join(lines)
 
 
 def format_liked_list(posts, current_position_start: int, total_posts: int) -> str:
     """Формат списка кратких карточек 4-5 постов (избранное)"""
-    lines = ["<b>❤️ Ваши избранные мероприятия</b>", ""]
+    lines = ["❤️ Ваши избранные мероприятия", ""]
     for idx, post in enumerate(posts, start=current_position_start):
         # Получаем чистые названия категорий без эмодзи
         category_str = get_clean_category_string(post.categories)
         event_at = getattr(post, "event_at", None)
         event_str = _msk_str(event_at)
-        lines.append(f"{idx}. {post.title}")
+        lines.append(f"{idx}. <b>{post.title}</b>")
         lines.append(f"   📂 {category_str}")
         lines.append(f"   📅 {event_str}")
         lines.append("")
