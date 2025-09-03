@@ -407,7 +407,7 @@ async def show_liked_page(callback: CallbackQuery, page: int, db):
     text = format_liked_list(posts, page + 1, total_posts)
     try:
         await callback.message.edit_text(
-            text, reply_markup=get_liked_list_keyboard(posts, page, total_pages)
+            text, reply_markup=get_liked_list_keyboard(posts, page, total_pages),
             parse_mode="HTML"
         )
     except TelegramBadRequest as e:
