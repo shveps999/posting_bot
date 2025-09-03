@@ -12,7 +12,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 def get_category_keyboard() -> ReplyKeyboardMarkup:
     """Клавиатура для выбора категорий"""
     keyboard = [
-        [KeyboardButton(text="✅ Подтвердить выбор")],
+        [KeyboardButton(text="☑️ Подтвердить выбор")],
         [KeyboardButton(text="🔙 Назад")],
     ]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
