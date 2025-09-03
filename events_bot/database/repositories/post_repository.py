@@ -210,7 +210,7 @@ class PostRepository:
         now_utc = func.now()
         result = await db.execute(
             select(Post)
-            .distinct()
+            .group_by(Post.id)
             .join(Post.categories)
             .where(
                 and_(
@@ -221,7 +221,6 @@ class PostRepository:
                 )
             )
             .options(selectinload(Post.author), selectinload(Post.categories))
-            .group_by(Post.id)
             .order_by(Post.event_at.is_(None), Post.event_at.asc())  # ✅ Главное изменение
             .limit(limit)
             .offset(offset)
