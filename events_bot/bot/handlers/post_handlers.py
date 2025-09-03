@@ -189,13 +189,31 @@ async def confirm_post_categories(callback: CallbackQuery, state: FSMContext, db
     if not category_ids:
         await callback.answer("Выберите хотя бы одну категорию", show_alert=True)
         return
+
+    # Получаем объекты категорий из базы данных
+    stmt = select(Category).where(Category.id.in_(category_ids))
+    result = await db.execute(stmt)
+    categories = result.scalars().all()
+
+    # Формируем список названий категорий
+    if categories:
+        category_names = [cat.name for cat in categories]
+        category_list = ", ".join(category_names)
+    else:
+        category_list = "Неизвестные категории"
+
+    # Сохраняем выбранные ID в состояние
     await state.update_data(category_ids=category_ids)
     logfire.info(
-        f"Категории подтверждены для пользователя {callback.from_user.id}: {category_ids}"
+        f"Категории подтверждены для пользователя {callback.from_user.id}: {category_names}"
     )
+
+    # Отправляем сообщение с названиями категорий
     await callback.message.edit_text(
-        f"📝 Создание мероприятия в категориях: {len(category_ids)} выбрано\n\nВведите заголовок:"
+        f"📝 Создание мероприятия в категориях: {category_list}\n\nВведите заголовок:"
     )
+
+    # Переходим к следующему шагу
     await state.set_state(PostStates.waiting_for_title)
     logfire.info(
         f"Состояние изменено на waiting_for_title для пользователя {callback.from_user.id}"
