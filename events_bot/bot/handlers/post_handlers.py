@@ -53,7 +53,7 @@ async def start_create_post(callback: CallbackQuery, state: FSMContext, db):
 
     # Сначала предлагаем выбрать города
     await callback.message.edit_text(
-        "🏙️ Выберите город для поста:", reply_markup=get_city_keyboard(for_post=True)
+        "Выберите город для поста:", reply_markup=get_city_keyboard(for_post=True)
     )
     await state.set_state(PostStates.waiting_for_city_selection)
     await callback.answer()
