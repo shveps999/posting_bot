@@ -22,7 +22,7 @@ def get_feed_list_keyboard(
             text="Вперед ➡️", callback_data=f"feed_next_{current_page}_{total_pages}"
         )
     builder.button(text="🏠 Главное меню", callback_data="main_menu")
-    builder.adjust(1)  # Каждая кнопка — на отдельной строке
+    builder.adjust(5)  # Каждая кнопка — на отдельной строке
     return builder.as_markup()
 
 
@@ -80,7 +80,7 @@ def get_liked_list_keyboard(
             text="Вперед ➡️", callback_data=f"liked_next_{current_page}_{total_pages}"
         )
     builder.button(text="🏠 Главное меню", callback_data="main_menu")
-    builder.adjust(1)
+    builder.adjust(5)
     return builder.as_markup()
 
 
