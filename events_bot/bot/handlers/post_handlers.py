@@ -64,7 +64,7 @@ async def cancel_post_creation(callback: CallbackQuery, state: FSMContext, db):
     """Отмена создания поста"""
     await state.clear()
     await callback.message.edit_text(
-        "Создание поста отменено ✖️", reply_markup=get_main_keyboard()
+        "Создание поста мероприятия ✖️", reply_markup=get_main_keyboard()
     )
     await callback.answer()
 
@@ -85,7 +85,7 @@ async def select_all_cities(callback: CallbackQuery, state: FSMContext, db):
     # Обновляем клавиатуру
     city_text = ", ".join(all_cities)
     await callback.message.edit_text(
-        f"📍 Выбранные города: {city_text}\n\n",
+        f"📍 Выбранные города: {city_text}",
         reply_markup=get_city_keyboard(for_post=True, selected_cities=all_cities)
     )
     await callback.answer("Все города выбраны!")
