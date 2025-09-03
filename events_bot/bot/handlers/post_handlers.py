@@ -212,7 +212,7 @@ async def confirm_post_categories(callback: CallbackQuery, state: FSMContext, db
 
     # Отправляем сообщение с названиями категорий
     await callback.message.edit_text(
-        f"📝 Создание мероприятия в категориях: {category_list}\n\nВведите заголовок:"
+        f"✏️ Создание мероприятия в категориях: {category_list}\n\nВведите заголовок:"
     )
 
     # Переходим к следующему шагу
@@ -237,7 +237,7 @@ async def process_post_title(message: Message, state: FSMContext, db):
 
     await state.update_data(title=message.text)
     logfire.info(f"Заголовок сохранен в состоянии: {message.text}")
-    await message.answer("📄 Введите описание мероприятия:")
+    await message.answer("Введите описание мероприятия:")
     await state.set_state(PostStates.waiting_for_content)
     logfire.info(
         f"Состояние изменено на waiting_for_content для пользователя {message.from_user.id}"
@@ -270,8 +270,6 @@ async def process_post_url(message: Message, state: FSMContext, db):
     await state.update_data(url=url)
     await message.answer(
         "🗓 Введите дату и время события в формате ДД.ММ.ГГГГ ЧЧ:ММ (например, 25.12.2025 18:30)\n\n"
-        "🕐 Время указывайте по московскому часовому поясу (МСК)\n"
-        "⚠️ Время должно быть в будущем!\n"
     )
     await state.set_state(PostStates.waiting_for_event_datetime)
 
