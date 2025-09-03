@@ -31,8 +31,8 @@ def get_city_keyboard(for_post: bool = False, selected_cities: list = None) -> I
         # 🔄 ВАЖНО: сначала "Отмена", потом "Подтвердить"
         # Тогда "Отмена" будет слева, "Подтвердить" — справа
         builder.row(
-            InlineKeyboardButton(text="Отмена ✖️", callback_data="cancel_post"),
-            InlineKeyboardButton(text="Подтвердить", callback_data="post_city_confirm")
+            InlineKeyboardButton(text="Отмена", callback_data="cancel_post"),
+            InlineKeyboardButton(text="Подтвердить ☑️", callback_data="post_city_confirm")
         )
     else:
         # Для выбора города пользователя (одиночный выбор)
