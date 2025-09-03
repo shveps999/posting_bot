@@ -192,10 +192,12 @@ async def receive_moderator_comment(message: Message, state: FSMContext, db):
     post_id = data.get("pending_post_id")
     pending_action = data.get("pending_action", "changes")
     comment = message.text.strip()
+    
     if not post_id:
         await message.answer("Не удалось определить пост. Попробуйте снова.")
         await state.clear()
         return
+
     if pending_action == "reject":
         post = await PostService.reject_post(db, post_id, message.from_user.id, comment)
         if post:
@@ -203,10 +205,12 @@ async def receive_moderator_comment(message: Message, state: FSMContext, db):
             try:
                 await message.bot.send_message(
                     chat_id=post.author_id,
-                    text=f"Ваше мероприятие «{post.title}» отклонено. Пожалуйста, создайте его заного с учетом указанных изменений 🥲\n\nКомментарий модератора: {comment}",
+                    text=f"Ваше мероприятие «{post.title}» отклонено. Пожалуйста, создайте его заного с учетом указанного комментария 🥲\n\n"
+                         f"<b>Комментарий модератора:</b> {comment}",
+                    parse_mode="HTML"  # ✅ Включаем HTML-разметку
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logfire.error(f"Не удалось отправить сообщение автору {post.author_id}: {e}")
         else:
             await message.answer("❌ Ошибка при отклонении поста")
     else:
@@ -217,14 +221,16 @@ async def receive_moderator_comment(message: Message, state: FSMContext, db):
             await message.answer(
                 "📝 Запрошены изменения. Комментарий отправлен автору."
             )
-            # Уведомим автора
             try:
                 await message.bot.send_message(
                     chat_id=post.author_id,
-                    text=f"Ваше мероприятие «{post.title}» требует изменений. Пожалуйста, создайте его заного с учетом указанных изменений ✍️🧐\n\nКомментарий модератора: {comment}",
+                    text=f"Ваше мероприятие «{post.title}» требует изменений. Пожалуйста, создайте его заного с учетом указанного комментария ✍️🧐\n\n"
+                         f"<b>Комментарий модератора:</b> {comment}",
+                    parse_mode="HTML"  # ✅ Включаем HTML-разметку
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logfire.error(f"Не удалось отправить сообщение автору {post.author_id}: {e}")
         else:
             await message.answer("❌ Ошибка при запросе изменений")
+    
     await state.clear()
