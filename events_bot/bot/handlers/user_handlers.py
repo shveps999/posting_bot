@@ -9,24 +9,36 @@ from events_bot.utils import get_clean_category_string
 router = Router()
 
 
-@router.callback_query(F.data.startswith("notify_like_"))
-async def handle_notify_like(callback: CallbackQuery, db):
-    """Добавить пост в избранное из уведомления"""
+@router.callback_query(F.data.startswith("notify_heart_"))
+async def handle_notify_heart(callback: CallbackQuery, db):
+    """Обработка нажатия на 'В избранное' в уведомлении"""
     try:
-        post_id = int(callback.data.split("notify_like_")[1])
+        post_id = int(callback.data.split("notify_heart_")[1])
         user_id = callback.from_user.id
+
+        # Переключаем лайк
+        result = await LikeService.toggle_like(db, user_id, post_id)
+        is_liked = result["action"] == "added"
+
+        # Получаем URL поста
         post = await PostService.get_post_by_id(db, post_id)
-        if not post:
-            await callback.answer("Пост не найден", show_alert=True)
-            return
-        liked = await LikeService.is_post_liked_by_user(db, user_id, post_id)
-        if liked:
-            await callback.answer("Уже в избранном", show_alert=True)
-            return
-        await LikeService.add_like(db, user_id, post_id)
-        await callback.answer("Добавлено в избранное!", show_alert=True)
-    except Exception:
-        await callback.answer("Ошибка добавления в избранное", show_alert=True)
+        post_url = getattr(post, "url", None)
+
+        # Обновляем клавиатуру
+        from events_bot.bot.keyboards.notification_keyboard import get_post_notification_keyboard
+        new_keyboard = get_post_notification_keyboard(
+            post_id=post_id,
+            is_liked=is_liked,
+            url=post_url
+        )
+        await callback.message.edit_reply_markup(reply_markup=new_keyboard)
+
+        # Ответ пользователю
+        action_text = "добавлено в избранное" if is_liked else "удалено из избранного"
+        await callback.answer(f"✅ Пост {action_text}", show_alert=True)
+
+    except Exception as e:
+        await callback.answer("❌ Ошибка при изменении избранного", show_alert=True)
 
 
 def register_user_handlers(dp: Router):
