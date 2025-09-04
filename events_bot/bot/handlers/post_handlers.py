@@ -65,9 +65,18 @@ async def start_create_post(callback: CallbackQuery, state: FSMContext, db):
 async def cancel_post_creation(callback: CallbackQuery, state: FSMContext, db):
     """Отмена создания поста"""
     await state.clear()
-    await callback.message.edit_text(
-        "Создание мероприятия отменено ✖️", reply_markup=get_main_keyboard()
-    )
+    try:
+        if callback.message.text:
+            await callback.message.edit_text(
+                "Создание мероприятия отменено ✖️", reply_markup=get_main_keyboard()
+            )
+        elif callback.message.caption:
+            await callback.message.edit_caption(
+                caption="Создание мероприятия отменено ✖️", reply_markup=get_main_keyboard()
+            )
+    except Exception as e:
+        if "message is not modified" not in str(e):
+            raise
     await callback.answer()
 
 
@@ -86,10 +95,16 @@ async def select_all_cities(callback: CallbackQuery, state: FSMContext, db):
     
     # Обновляем клавиатуру
     city_text = ", ".join(all_cities)
-    await callback.message.edit_text(
-        f"📍 Выбранные города: {city_text}",
-        reply_markup=get_city_keyboard(for_post=True, selected_cities=all_cities)
-    )
+    try:
+        await callback.message.edit_text(
+            f"📍 Выбранные города: {city_text}",
+            reply_markup=get_city_keyboard(for_post=True, selected_cities=all_cities)
+        )
+    except Exception as e:
+        if "message is not modified" in str(e):
+            pass
+        else:
+            raise
     await callback.answer("Все города выбраны!")
 
 
@@ -114,10 +129,16 @@ async def confirm_city_selection(callback: CallbackQuery, state: FSMContext, db)
     all_categories = await CategoryService.get_all_categories(db)
     
     city_text = ", ".join(selected_cities)
-    await callback.message.edit_text(
-        f"📍 Города выбраны: {city_text}\n\n⭐️ Теперь выберите категории мероприятия:",
-        reply_markup=get_category_selection_keyboard(all_categories, for_post=True),
-    )
+    try:
+        await callback.message.edit_text(
+            f"📍 Города выбраны: {city_text}\n\n⭐️ Теперь выберите категории мероприятия:",
+            reply_markup=get_category_selection_keyboard(all_categories, for_post=True),
+        )
+    except Exception as e:
+        if "message is not modified" in str(e):
+            pass
+        else:
+            raise
     await state.set_state(PostStates.waiting_for_category_selection)
     await callback.answer()
 
@@ -145,10 +166,16 @@ async def process_post_city_selection(callback: CallbackQuery, state: FSMContext
     
     # Обновляем клавиатуру
     city_text = ", ".join(selected_cities) if selected_cities else "не выбраны"
-    await callback.message.edit_text(
-        f"📍 Выбранные города: {city_text}",
-        reply_markup=get_city_keyboard(for_post=True, selected_cities=selected_cities)
-    )
+    try:
+        await callback.message.edit_text(
+            f"📍 Выбранные города: {city_text}",
+            reply_markup=get_city_keyboard(for_post=True, selected_cities=selected_cities)
+        )
+    except Exception as e:
+        if "message is not modified" in str(e):
+            pass
+        else:
+            raise
     await callback.answer()
 
 
@@ -171,12 +198,18 @@ async def process_post_category_selection(
 
     # Получаем все категории для выбора
     all_categories = await CategoryService.get_all_categories(db)
-    await callback.message.edit_text(
-        "⭐️ Выберите одну или несколько категорий для мероприятия:",
-        reply_markup=get_category_selection_keyboard(
-            all_categories, category_ids, for_post=True
-        ),
-    )
+    try:
+        await callback.message.edit_text(
+            "⭐️ Выберите одну или несколько категорий для мероприятия:",
+            reply_markup=get_category_selection_keyboard(
+                all_categories, category_ids, for_post=True
+            ),
+        )
+    except Exception as e:
+        if "message is not modified" in str(e):
+            pass
+        else:
+            raise
     await callback.answer()
 
 
@@ -211,9 +244,15 @@ async def confirm_post_categories(callback: CallbackQuery, state: FSMContext, db
     )
 
     # Отправляем сообщение с названиями категорий
-    await callback.message.edit_text(
-        f"✏️ Создание мероприятия в категориях: {category_list}\n\nВведите заголовок:"
-    )
+    try:
+        await callback.message.edit_text(
+            f"✏️ Создание мероприятия в категориях: {category_list}\n\nВведите заголовок:"
+        )
+    except Exception as e:
+        if "message is not modified" in str(e):
+            pass
+        else:
+            raise
 
     # Переходим к следующему шагу
     await state.set_state(PostStates.waiting_for_title)
@@ -310,7 +349,6 @@ async def process_event_datetime(message: Message, state: FSMContext, db):
                 return
 
             # Время остается в МСК (как ввёл пользователь)
-            # НЕ конвертируем в UTC, сохраняем как есть
             # Сохраняем в ISO (с таймзоной +00:00)
             await state.update_data(event_at=event_dt.isoformat())
             await message.answer(
