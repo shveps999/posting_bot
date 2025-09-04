@@ -52,7 +52,7 @@ def get_category_selection_keyboard(
         )
 
     buttons.append(
-        InlineKeyboardButton(text="Подтвердить ⌵", callback_data=confirm_callback)
+        InlineKeyboardButton(text="Подтвердить ✓", callback_data=confirm_callback)
     )
 
     # Добавляем обе кнопки в одну строку
