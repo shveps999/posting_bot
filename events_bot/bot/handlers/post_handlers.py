@@ -292,20 +292,17 @@ async def process_post_content(message: Message, state: FSMContext, db):
 
     await state.update_data(content=message.text)
     await message.answer(
-        "🔗 Введите ссылку на мероприятие (или отправьте /skip, если ссылки нет):"
+        "🔗 Введите ссылку на сайт / сообщество мероприятия (или отправьте контакты организатора, если ссылки нет):"
     )
     await state.set_state(PostStates.waiting_for_url)
 
 
 @router.message(PostStates.waiting_for_url)
 async def process_post_url(message: Message, state: FSMContext, db):
-    """Обработка ссылки для поста"""
+    """Обработка ссылки для поста (без проверки на http/https)"""
     url = None if message.text == "/skip" else message.text.strip()
-    if url and not (url.startswith("http://") or url.startswith("https://")):
-        await message.answer(
-            "✖️ Ссылка должна начинаться с http:// или https://. Попробуйте снова или отправьте /skip."
-        )
-        return
+    
+    # Убрали проверку — просто сохраняем ссылку
     await state.update_data(url=url)
     await message.answer(
         "🗓 Введите дату и время события в формате ДД.ММ.ГГГГ ЧЧ:ММ (например, 25.12.2025 18:30)\n\n"
