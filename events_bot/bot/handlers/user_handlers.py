@@ -135,7 +135,7 @@ async def cmd_help(message: Message):
     await message.answer(help_text, reply_markup=get_main_keyboard())
 
 
-async def safe_edit_message(message: CallbackQuery.message, text: str, reply_markup=None):
+async def safe_edit_message(message: Message, text: str, reply_markup=None):
     """Безопасное редактирование текста или подписи"""
     try:
         if message.text:
