@@ -33,11 +33,10 @@ def get_feed_list_keyboard(
     # 1. Все цифры в одной строке
     # 2. Навигация — в следующей строке (если есть)
     # 3. Главное меню — в последней строке
-    builder.adjust(len(posts))  # Все цифры в одну строку
     if current_page > 0 or current_page < total_pages - 1:
-        builder.adjust(len(posts), 2, 1)  # Если есть навигация
+        builder.adjust(len(posts), 2, 1)
     else:
-        builder.adjust(len(posts), 1)  # Только цифры и меню
+        builder.adjust(len(posts), 1)
 
     return builder.as_markup()
 
@@ -70,7 +69,6 @@ def get_liked_list_keyboard(
     builder.button(text="💌 Главное меню", callback_data="main_menu")
 
     # Расположение: как в ленте
-    builder.adjust(len(posts))
     if current_page > 0 or current_page < total_pages - 1:
         builder.adjust(len(posts), 2, 1)
     else:
@@ -79,7 +77,6 @@ def get_liked_list_keyboard(
     return builder.as_markup()
 
 
-# Остальные функции остаются без изменений
 def get_feed_post_keyboard(
     current_page: int,
     total_pages: int,
@@ -88,28 +85,31 @@ def get_feed_post_keyboard(
     likes_count: int = 0,
     url: str | None = None,
 ) -> InlineKeyboardMarkup:
+    """Клавиатура для детального просмотра поста в ленте"""
     builder = InlineKeyboardBuilder()
     heart_emoji = "❤️" if is_liked else "🤍"
     heart_text = f"{heart_emoji} {likes_count}" if likes_count > 0 else heart_emoji
+    
+    # Лайк
     builder.button(
         text=heart_text,
         callback_data=f"feed_heart_{post_id}_{current_page}_{total_pages}",
     )
+    
+    # К списку
     builder.button(
         text="↩️ К списку", callback_data=f"feed_back_{current_page}_{total_pages}"
     )
-    if current_page > 0:
-        builder.button(
-            text="‹ Назад", callback_data=f"feed_prev_{current_page}_{total_pages}"
-        )
-    if current_page < total_pages - 1:
-        builder.button(
-            text="Вперед ›", callback_data=f"feed_next_{current_page}_{total_pages}"
-        )
+    
+    # Ссылка (если есть)
     if url:
         builder.button(text="🔗 Подробнее", url=url)
+    
+    # Главное меню
     builder.button(text="💌 Главное меню", callback_data="main_menu")
-    builder.adjust(2, 2)
+    
+    # Расположение: 2 в первой строке, остальные по одной
+    builder.adjust(2, 1, 1)
     return builder.as_markup()
 
 
@@ -120,24 +120,25 @@ def get_liked_post_keyboard(
     is_liked: bool = False,
     likes_count: int = 0,
 ) -> InlineKeyboardMarkup:
+    """Клавиатура для детального просмотра поста в избранном"""
     builder = InlineKeyboardBuilder()
     heart_emoji = "❤️" if is_liked else "🤍"
     heart_text = f"{heart_emoji} {likes_count}" if likes_count > 0 else heart_emoji
+    
+    # Лайк
     builder.button(
         text=heart_text,
         callback_data=f"liked_heart_{post_id}_{current_page}_{total_pages}",
     )
+    
+    # К списку
     builder.button(
         text="↩️ К списку", callback_data=f"liked_back_{current_page}_{total_pages}"
     )
-    if current_page > 0:
-        builder.button(
-            text="‹ Назад", callback_data=f"liked_prev_{current_page}_{total_pages}"
-        )
-    if current_page < total_pages - 1:
-        builder.button(
-            text="Вперед ›", callback_data=f"liked_next_{current_page}_{total_pages}"
-        )
+    
+    # Главное меню
     builder.button(text="💌 Главное меню", callback_data="main_menu")
-    builder.adjust(2, 2)
+    
+    # Расположение: 2 в первой строке, остальные по одной
+    builder.adjust(2, 1, 1)
     return builder.as_markup()
