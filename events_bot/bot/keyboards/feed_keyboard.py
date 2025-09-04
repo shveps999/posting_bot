@@ -87,29 +87,24 @@ def get_feed_post_keyboard(
 ) -> InlineKeyboardMarkup:
     """Клавиатура для детального просмотра поста в ленте"""
     builder = InlineKeyboardBuilder()
-    heart_emoji = "❤️" if is_liked else "🤍"
+    heart_emoji = "В избранном ❤️" if is_liked else "В избранное 🤍"
     heart_text = f"{heart_emoji} {likes_count}" if likes_count > 0 else heart_emoji
+
+    # Добавляем в нужном порядке
+    builder.button(text=heart_text, callback_data=f"feed_heart_{post_id}_{current_page}_{total_pages}")
     
-    # Лайк
-    builder.button(
-        text=heart_text,
-        callback_data=f"feed_heart_{post_id}_{current_page}_{total_pages}",
-    )
-    
-    # К списку
-    builder.button(
-        text="↩️ К списку", callback_data=f"feed_back_{current_page}_{total_pages}"
-    )
-    
-    # Ссылка (если есть)
     if url:
         builder.button(text="🔗 Подробнее", url=url)
     
-    # Главное меню
+    builder.button(text="‹ К списку", callback_data=f"feed_back_{current_page}_{total_pages}")
     builder.button(text="💌 Главное меню", callback_data="main_menu")
-    
-    # Расположение: 2 в первой строке, остальные по одной
-    builder.adjust(2, 1, 1)
+
+    # Располагаем: максимум по 2 в ряд
+    if url:
+        builder.adjust(2, 2)  # [лайк][ссылка] [назад][меню]
+    else:
+        builder.adjust(1, 2)  # [лайк] [назад][меню]
+
     return builder.as_markup()
 
 
@@ -122,23 +117,15 @@ def get_liked_post_keyboard(
 ) -> InlineKeyboardMarkup:
     """Клавиатура для детального просмотра поста в избранном"""
     builder = InlineKeyboardBuilder()
-    heart_emoji = "❤️" if is_liked else "🤍"
+    heart_emoji = "В избранном ❤️" if is_liked else "В избранное 🤍"
     heart_text = f"{heart_emoji} {likes_count}" if likes_count > 0 else heart_emoji
-    
-    # Лайк
-    builder.button(
-        text=heart_text,
-        callback_data=f"liked_heart_{post_id}_{current_page}_{total_pages}",
-    )
-    
-    # К списку
-    builder.button(
-        text="↩️ К списку", callback_data=f"liked_back_{current_page}_{total_pages}"
-    )
-    
-    # Главное меню
+
+    # Порядок: лайк → к списку → главное меню
+    builder.button(text=heart_text, callback_data=f"liked_heart_{post_id}_{current_page}_{total_pages}")
+    builder.button(text="‹ К списку", callback_data=f"liked_back_{current_page}_{total_pages}")
     builder.button(text="💌 Главное меню", callback_data="main_menu")
-    
-    # Расположение: 2 в первой строке, остальные по одной
-    builder.adjust(2, 1, 1)
+
+    # Располагаем: [лайк] [назад][меню]
+    builder.adjust(1, 2)
+
     return builder.as_markup()
