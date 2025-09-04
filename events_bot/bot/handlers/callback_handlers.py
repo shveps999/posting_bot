@@ -40,7 +40,7 @@ async def process_category_selection(callback: CallbackQuery, state: FSMContext,
     await callback.answer()
 
 
-async def safe_edit_message(message, text: str, reply_markup=None, parse_mode=None):
+async def safe_edit_message(message: Message, text: str, reply_markup=None, parse_mode=None):
     """Безопасное редактирование сообщения: поддерживает текст и подпись"""
     try:
         if message.text:
