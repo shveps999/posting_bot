@@ -31,30 +31,24 @@ def get_category_selection_keyboard(
     prefix = "post_category_" if for_post else "category_"
 
     for category in categories:
-        is_selected = category.id in selected_ids
-        checkbox = "⭐️" if is_selected else "▫️"
+    is_selected = category.id in selected_ids
+    checkbox = "⭐️" if is_selected else "▫️"
 
-        # Используем display_name для UI (с эмодзи), fallback на name
-        display_name = getattr(category, "display_name", None) or category.name
+    # Используем display_name для UI (с эмодзи), fallback на name
+    display_name = getattr(category, "display_name", None) or category.name
 
-        text = f"{display_name} {checkbox}"
-        builder.button(text=text, callback_data=f"{prefix}{category.id}")
-    builder.adjust(2)
+    text = f"{display_name} {checkbox}"
+    builder.button(text=text, callback_data=f"{prefix}{category.id}")
 
-    confirm_callback = "confirm_post_categories" if for_post else "confirm_categories"
+# Располагаем категории по 2 в ряд
+builder.adjust(2)
 
-    # Создаём список кнопок: сначала "Отмена", потом "Подтвердить"
-    buttons = []
+confirm_callback = "confirm_post_categories" if for_post else "confirm_categories"
 
-    if for_post:
-        buttons.append(
-            InlineKeyboardButton(text="Отменить ×", callback_data="cancel_post")
-        )
+# Добавляем кнопки в отдельных строках — один под другим
+if for_post:
+    builder.row(InlineKeyboardButton(text="Отменить ×", callback_data="cancel_post"))
 
-    buttons.append(
-        InlineKeyboardButton(text="Подтвердить ✓", callback_data=confirm_callback)
-    )
+builder.row(InlineKeyboardButton(text="Подтвердить ✓", callback_data=confirm_callback))
 
-    # Добавляем обе кнопки в одну строку
-    builder.row(*buttons)
-    return builder.as_markup()
+return builder.as_markup()
