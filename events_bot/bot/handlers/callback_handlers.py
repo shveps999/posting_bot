@@ -33,11 +33,27 @@ async def process_category_selection(callback: CallbackQuery, state: FSMContext,
 
     await state.update_data(selected_categories=selected_ids)
 
-    # Обновляем клавиатуру
+    # Обновляем клавиатуру (меняем только кнопки — безопасно)
     await callback.message.edit_reply_markup(
         reply_markup=get_category_selection_keyboard(categories, selected_ids)
     )
     await callback.answer()
+
+
+async def safe_edit_message(message, text: str, reply_markup=None, parse_mode=None):
+    """Безопасное редактирование сообщения: поддерживает текст и подпись"""
+    try:
+        if message.text:
+            await message.edit_text(text=text, reply_markup=reply_markup, parse_mode=parse_mode)
+        elif message.caption:
+            await message.edit_caption(caption=text, reply_markup=reply_markup, parse_mode=parse_mode)
+        else:
+            await message.edit_text(text=text, reply_markup=reply_markup, parse_mode=parse_mode)
+    except Exception as e:
+        if "message is not modified" in str(e):
+            pass  # Игнорируем
+        else:
+            raise
 
 
 @router.callback_query(F.data == "confirm_categories")
@@ -56,15 +72,22 @@ async def confirm_categories_selection(callback: CallbackQuery, state: FSMContex
     # Получаем названия выбранных категорий
     categories = await CategoryService.get_all_categories(db)
     selected_categories = [cat for cat in categories if cat.id in selected_ids]
-    # Используем чистые названия (name) для текста подтверждения
     category_names = ", ".join([cat.name for cat in selected_categories])
 
-    await callback.message.edit_text(
-        f"✅ Выбраны категории: {category_names}\n\n"
-        "Теперь вы можете создавать посты в этих категориях."
+    # Редактируем сообщение с подтверждением
+    await safe_edit_message(
+        callback.message,
+        text=f"✅ Выбраны категории: {category_names}\n\n"
+             "Теперь вы можете создавать посты в этих категориях.",
+        reply_markup=None
     )
 
-    await callback.message.edit_text(
-        "Выберите действие:", reply_markup=get_main_keyboard()
+    # Переход к главному меню
+    await safe_edit_message(
+        callback.message,
+        text="Выберите действие:",
+        reply_markup=get_main_keyboard()
     )
+
     await state.clear()
+    await callback.answer()
