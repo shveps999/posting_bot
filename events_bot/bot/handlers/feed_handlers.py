@@ -190,12 +190,12 @@ def format_post_for_feed(
     event_str = _msk_str(event_at)
     lines = [
         f"⭐️ <i>{category_str}</i>",
-        f"<b>{post.title}</b>",
         "",
+        f"<b>{post.title}</b>",
     ]
     if event_str:
-        lines.append(f"<i>• {event_str}</i>")
-    lines.append(f"<i>• {getattr(post, 'address', 'Не указан')}</i>")
+        lines.append(f"<i>🗓 {event_str}</i>")
+    lines.append(f"<i>📍 {getattr(post, 'address', 'Не указан')}</i>")
     lines.append("")
     lines.append(f"{post.content}")
     lines.append("")
