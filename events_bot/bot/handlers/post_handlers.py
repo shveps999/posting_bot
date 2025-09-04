@@ -292,17 +292,20 @@ async def process_post_content(message: Message, state: FSMContext, db):
 
     await state.update_data(content=message.text)
     await message.answer(
-        "🔗 Введите ссылку на сайт / сообщество мероприятия (или отправьте контакты организатора, если ссылки нет):"
+        "🔗 Введите ссылку на сайт / канал / сообщество мероприятия (или отправьте контакты организатора в формате https://). Эта ссылка будет прикреплена к вашему анонсу:"
     )
     await state.set_state(PostStates.waiting_for_url)
 
 
 @router.message(PostStates.waiting_for_url)
 async def process_post_url(message: Message, state: FSMContext, db):
-    """Обработка ссылки для поста (без проверки на http/https)"""
+    """Обработка ссылки для поста"""
     url = None if message.text == "/skip" else message.text.strip()
-    
-    # Убрали проверку — просто сохраняем ссылку
+    if url and not (url.startswith("http://") or url.startswith("https://")):
+        await message.answer(
+            "❌ Ссылка на должна начинаться с http:// или https://. Попробуйте снова или отправьте /skip."
+        )
+        return
     await state.update_data(url=url)
     await message.answer(
         "🗓 Введите дату и время события в формате ДД.ММ.ГГГГ ЧЧ:ММ (например, 25.12.2025 18:30)\n\n"
@@ -349,7 +352,7 @@ async def process_event_datetime(message: Message, state: FSMContext, db):
             # Сохраняем в ISO (с таймзоной +00:00)
             await state.update_data(event_at=event_dt.isoformat())
             await message.answer(
-                "Введите адрес мероприятия:"
+                "📍 Введите адрес мероприятия:"
             )
             await state.set_state(PostStates.waiting_for_address)
             return
@@ -370,7 +373,7 @@ async def process_post_address(message: Message, state: FSMContext, db):
 
     await state.update_data(address=address)
     await message.answer(
-        "🌌 Отправьте изображение для мероприятия (или нажмите /skip для пропуска):"
+        "🎆 Отправьте изображение для мероприятия (или нажмите /skip для пропуска):"
     )
     await state.set_state(PostStates.waiting_for_image)
 
