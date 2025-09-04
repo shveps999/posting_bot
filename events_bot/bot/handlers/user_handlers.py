@@ -46,11 +46,9 @@ def register_user_handlers(dp: Router):
 @router.message(F.text.in_(["/menu", "/main_menu"]))
 async def cmd_main_menu(message: Message):
     """Обработчик команды /menu для главного меню"""
-    menu_text = """
-Главное меню
-"""
+    menu_text = "Главное меню"
     await message.answer(
-        menu_text, reply_markup=get_main_keyboard(), parse_mode="Markdown"
+        menu_text, reply_markup=get_main_keyboard()
     )
 
 
@@ -67,10 +65,8 @@ async def cmd_my_posts(message: Message, db):
 
     response = "📊 Ваши посты:\n\n"
     for post in posts:
-        # Загружаем связанные объекты
         await db.refresh(post, attribute_names=["categories"])
         status = "✅ Одобрен" if post.is_approved else "⏳ На модерации"
-        # Получаем чистые названия категорий без эмодзи
         category_str = get_clean_category_string(post.categories)
         post_city = getattr(post, "city", "Не указан")
         response += f"📝 {post.title}\n"
@@ -136,8 +132,21 @@ async def cmd_help(message: Message):
 По любым вопросам обращайтесь в поддержку @serdce_help
 """
 
-    # Убираем parse_mode — просто отправляем текст
     await message.answer(help_text, reply_markup=get_main_keyboard())
+
+
+async def safe_edit_message(message: CallbackQuery.message, text: str, reply_markup=None):
+    """Безопасное редактирование текста или подписи"""
+    try:
+        if message.text:
+            await message.edit_text(text=text, reply_markup=reply_markup)
+        elif message.caption:
+            await message.edit_caption(caption=text, reply_markup=reply_markup)
+        else:
+            await message.edit_text(text=text, reply_markup=reply_markup)
+    except Exception as e:
+        if "message is not modified" not in str(e):
+            raise
 
 
 @router.callback_query(F.data.startswith("city_"))
@@ -147,7 +156,6 @@ async def process_city_selection_callback(
     """Обработка выбора города через инлайн-кнопку"""
     city = callback.data[5:]
 
-    # Обновляем город пользователя
     user = await UserService.register_user(
         db=db,
         telegram_id=callback.from_user.id,
@@ -157,11 +165,10 @@ async def process_city_selection_callback(
     )
     user.city = city
     await db.commit()
+
     categories = await CategoryService.get_all_categories(db)
-    await callback.message.edit_text(
-        f"🏙️ Город {city} выбран!\n\nТеперь выберите категории для публикации постов:",
-        reply_markup=get_category_selection_keyboard(categories),
-    )
+    text = f"🏙️ Город {city} выбран!\n\nТеперь выберите категории для публикации постов:"
+    await safe_edit_message(callback.message, text=text, reply_markup=get_category_selection_keyboard(categories))
     await state.set_state(UserStates.waiting_for_categories)
     await callback.answer()
 
@@ -169,8 +176,10 @@ async def process_city_selection_callback(
 @router.callback_query(F.data == "change_city")
 async def change_city_callback(callback: CallbackQuery, state: FSMContext):
     """Изменение города через инлайн-кнопку"""
-    await callback.message.edit_text(
-        "Выберите новый город:", reply_markup=get_city_keyboard()
+    await safe_edit_message(
+        callback.message,
+        text="Выберите новый город:",
+        reply_markup=get_city_keyboard()
     )
     await state.set_state(UserStates.waiting_for_city)
     await callback.answer()
@@ -183,9 +192,10 @@ async def change_category_callback(callback: CallbackQuery, state: FSMContext, d
     user_categories = await UserService.get_user_categories(db, callback.from_user.id)
     selected_ids = [cat.id for cat in user_categories]
 
-    await callback.message.edit_text(
-        "Выберите категории для публикации постов:",
-        reply_markup=get_category_selection_keyboard(categories, selected_ids),
+    await safe_edit_message(
+        callback.message,
+        text="Выберите категории для публикации постов:",
+        reply_markup=get_category_selection_keyboard(categories, selected_ids)
     )
     await state.set_state(UserStates.waiting_for_categories)
     await callback.answer()
@@ -197,17 +207,13 @@ async def show_my_posts_callback(callback: CallbackQuery, db):
     posts = await PostService.get_user_posts(db, callback.from_user.id)
 
     if not posts:
-        await callback.message.edit_text(
-            "📭 У вас пока нет постов.", reply_markup=get_main_keyboard()
-        )
+        await safe_edit_message(callback.message, text="📭 У вас пока нет постов.", reply_markup=get_main_keyboard())
         return
 
     response = "📊 Ваши посты:\n\n"
     for post in posts:
-        # Загружаем связанные объекты
         await db.refresh(post, attribute_names=["categories"])
         status = "✅ Одобрен" if post.is_approved else "⏳ На модерации"
-        # Получаем чистые названия категорий без эмодзи
         category_str = get_clean_category_string(post.categories)
         post_city = getattr(post, "city", "Не указан")
         response += f"📝 {post.title}\n"
@@ -216,7 +222,7 @@ async def show_my_posts_callback(callback: CallbackQuery, db):
         response += f"📅 {post.created_at.strftime('%d.%m.%Y %H:%M')}\n"
         response += f"📊 {status}\n\n"
 
-    await callback.message.edit_text(response, reply_markup=get_main_keyboard())
+    await safe_edit_message(callback.message, text=response, reply_markup=get_main_keyboard())
     await callback.answer()
 
 
@@ -253,18 +259,13 @@ async def show_help_callback(callback: CallbackQuery):
 По любым вопросам обращайтесь в поддержку @serdce_help
 """
 
-    # Убираем parse_mode — Telegram будет считать текст обычным
-    await callback.message.edit_text(help_text, reply_markup=get_main_keyboard())
+    await safe_edit_message(callback.message, text=help_text, reply_markup=get_main_keyboard())
     await callback.answer()
 
 
 @router.callback_query(F.data == "main_menu")
 async def show_main_menu_callback(callback: CallbackQuery):
     """Обработчик кнопки возврата в главное меню"""
-    menu_text = """
- *Главное меню*
-"""
-    await callback.message.edit_text(
-        menu_text, reply_markup=get_main_keyboard(), parse_mode="Markdown"
-    )
+    menu_text = "Главное меню"
+    await safe_edit_message(callback.message, text=menu_text, reply_markup=get_main_keyboard())
     await callback.answer()
