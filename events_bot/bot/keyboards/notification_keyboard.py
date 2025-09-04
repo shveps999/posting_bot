@@ -9,6 +9,6 @@ def get_post_notification_keyboard(
     builder.button(text="❤️ В избранное", callback_data=f"notify_like_{post_id}")
     if url:
         builder.button(text="🔗 Подробнее", url=url)
-    builder.button(text="🏠 Главное меню", callback_data="main_menu")
+    builder.button(text="💌 Главное меню", callback_data="main_menu")
     builder.adjust(2)
     return builder.as_markup()
