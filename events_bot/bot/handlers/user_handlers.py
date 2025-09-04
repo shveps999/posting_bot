@@ -266,6 +266,12 @@ async def show_help_callback(callback: CallbackQuery):
 @router.callback_query(F.data == "main_menu")
 async def show_main_menu_callback(callback: CallbackQuery):
     """Обработчик кнопки возврата в главное меню"""
-    menu_text = "Главное меню"
-    await safe_edit_message(callback.message, text=menu_text, reply_markup=get_main_keyboard())
+    try:
+        await callback.message.delete()
+        await callback.message.answer(
+            "Выберите действие:",
+            reply_markup=get_main_keyboard()
+        )
+    except Exception as e:
+        logfire.error(f"Ошибка при возврате в главное меню: {e}")
     await callback.answer()
