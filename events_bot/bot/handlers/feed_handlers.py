@@ -247,29 +247,28 @@ async def handle_post_heart(callback: CallbackQuery, post_id: int, db, data):
 
         # Формируем сообщение для пользователя
         action_text = "добавлено" if result["action"] == "added" else "удалено"
-        likes_count = result["likes_count"]
 
-        response_text = f"Сердечко {action_text}!\n\n"
-        response_text += f"💖 Всего сердечек: {likes_count}"
+        await callback.answer(f"Сердечко {action_text}!", show_alert=True)
 
-        await callback.answer(response_text, show_alert=True)
-
-        # Обновляем клавиатуру с новым количеством лайков
+        # Получаем актуальное состояние
         is_liked = await LikeService.is_post_liked_by_user(
             db, callback.from_user.id, post_id
         )
-
         current_page = int(data[3])
         total_pages = int(data[4])
-        # Выбираем правильную клавиатуру для текущего раздела (лента или избранное)
         section = data[0]
+
+        # Получаем URL поста
+        post = await PostService.get_post_by_id(db, post_id)
+        post_url = getattr(post, "url", None)
+
+        # Обновляем клавиатуру с сохранением URL
         if section == "liked":
             new_keyboard = get_liked_post_keyboard(
                 current_page=current_page,
                 total_pages=total_pages,
                 post_id=post_id,
                 is_liked=is_liked,
-                likes_count=likes_count,
             )
         else:
             new_keyboard = get_feed_post_keyboard(
@@ -277,7 +276,7 @@ async def handle_post_heart(callback: CallbackQuery, post_id: int, db, data):
                 total_pages=total_pages,
                 post_id=post_id,
                 is_liked=is_liked,
-                likes_count=likes_count,
+                url=post_url,
             )
         await callback.message.edit_reply_markup(reply_markup=new_keyboard)
 
@@ -321,11 +320,10 @@ async def show_post_details(
                         parse_mode="HTML"
                     ),
                     reply_markup=get_feed_post_keyboard(
-                        current_page,
-                        total_pages,
-                        post.id,
-                        is_liked,
-                        likes_count,
+                        current_page=current_page,
+                        total_pages=total_pages,
+                        post_id=post.id,
+                        is_liked=is_liked,
                         url=post_url,
                     ),
                 )
@@ -341,11 +339,10 @@ async def show_post_details(
         await callback.message.edit_text(
             text,
             reply_markup=get_feed_post_keyboard(
-                current_page,
-                total_pages,
-                post.id,
-                is_liked,
-                likes_count,
+                current_page=current_page,
+                total_pages=total_pages,
+                post_id=post.id,
+                is_liked=is_liked,
                 url=post_url
             ),
             parse_mode="HTML",
@@ -464,7 +461,10 @@ async def show_liked_post_details(
                         parse_mode="HTML"
                     ),
                     reply_markup=get_liked_post_keyboard(
-                        current_page, total_pages, post.id, is_liked, likes_count
+                        current_page=current_page,
+                        total_pages=total_pages,
+                        post_id=post.id,
+                        is_liked=is_liked,
                     ),
                 )
             except TelegramBadRequest as e:
@@ -477,7 +477,10 @@ async def show_liked_post_details(
         await callback.message.edit_text(
             text,
             reply_markup=get_liked_post_keyboard(
-                current_page, total_pages, post.id, is_liked, likes_count
+                current_page=current_page,
+                total_pages=total_pages,
+                post_id=post.id,
+                is_liked=is_liked,
             ),
             parse_mode="HTML",
         )
