@@ -194,17 +194,20 @@ def format_post_for_feed(
     post_city = getattr(post, "city", "Не указан")
     event_at = getattr(post, "event_at", None)
     event_str = _msk_str(event_at)
-    return (
-        f"⭐️ <i>{category_str}</i>\n"
-        f"<b>{post.title}</b>\n\n"
-        f"<i>• {event_str}</i>\n"
-        f"<i>• {getattr(post, 'address', 'Не указан')}</i>\n\n"
-        f"{post.content}\n\n"
-        if event_str
-        else ""
-        f"💖 Сердечек: {likes_count}\n\n"
-        f"{current_position} из {total_posts} постов"
-    )
+    lines = [
+        f"⭐️ <i>{category_str}</i>",
+        f"<b>{post.title}</b>",
+        "",
+    ]
+    if event_str:
+        lines.append(f"<i>• {event_str}</i>")
+    lines.append(f"<i>• {getattr(post, 'address', 'Не указан')}</i>")
+    lines.append("")
+    lines.append(f"{post.content}")
+    lines.append("")
+    lines.append(f"💖 Сердечек: {likes_count}")
+    lines.append(f"{current_position} из {total_posts} постов")
+    return "\n".join(lines)
 
 
 def format_feed_list(posts, current_position_start: int, total_posts: int) -> str:
@@ -217,7 +220,7 @@ def format_feed_list(posts, current_position_start: int, total_posts: int) -> st
         event_str = _msk_str(event_at)
         lines.append(f"{idx}. <b>{post.title}</b>")
         lines.append(f"<i>   ⭐️ {category_str}</i>")
-        lines.append(f"<i>    🗓 {event_str}</i>")
+        lines.append(f"<i>   🗓 {event_str}</i>")
         lines.append("")
     lines.append("Нажмите на число, чтобы смотреть событие подробнее")
     return "\n".join(lines)
@@ -305,20 +308,25 @@ async def show_post_details(
         db, callback.from_user.id, post.id
     )
     likes_count = await LikeService.get_post_likes_count(db, post.id)
+    total_feed_posts = await PostService.get_feed_posts_count(db, callback.from_user.id)
     text = format_post_for_feed(
         post,
         current_page + 1,
-        await PostService.get_feed_posts_count(db, callback.from_user.id),
+        total_feed_posts,
         likes_count,
     )
     post_url = getattr(post, "url", None)
+
+    # Если у поста есть изображение
     if post.image_id:
         media_photo = await file_storage.get_media_photo(post.image_id)
         if media_photo:
             try:
                 await callback.message.edit_media(
                     media=InputMediaPhoto(
-                        media=media_photo.media, caption=text, parse_mode="HTML"
+                        media=media_photo.media,
+                        caption=text,
+                        parse_mode="HTML"
                     ),
                     reply_markup=get_feed_post_keyboard(
                         current_page,
@@ -335,11 +343,18 @@ async def show_post_details(
                 else:
                     raise
             return
+
+    # Для текстовых сообщений
     try:
         await callback.message.edit_text(
             text,
             reply_markup=get_feed_post_keyboard(
-                current_page, total_pages, post.id, is_liked, likes_count, url=post_url
+                current_page,
+                total_pages,
+                post.id,
+                is_liked,
+                likes_count,
+                url=post_url
             ),
             parse_mode="HTML",
         )
@@ -431,10 +446,11 @@ async def show_liked_post_details(
         db, callback.from_user.id, post.id
     )
     likes_count = await LikeService.get_post_likes_count(db, post.id)
+    total_liked = await PostService.get_liked_posts_count(db, callback.from_user.id)
     text = format_post_for_feed(
         post,
         current_page + 1,
-        await PostService.get_liked_posts_count(db, callback.from_user.id),
+        total_liked,
         likes_count,
     )
     if post.image_id:
@@ -443,7 +459,9 @@ async def show_liked_post_details(
             try:
                 await callback.message.edit_media(
                     media=InputMediaPhoto(
-                        media=media_photo.media, caption=text, parse_mode="HTML"
+                        media=media_photo.media,
+                        caption=text,
+                        parse_mode="HTML"
                     ),
                     reply_markup=get_liked_post_keyboard(
                         current_page, total_pages, post.id, is_liked, likes_count
