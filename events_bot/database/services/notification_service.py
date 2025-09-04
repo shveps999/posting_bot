@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..repositories import UserRepository
 from ..models import User, Post
 from ...utils import get_clean_category_string
-from ..keyboards.notification_keyboard import get_post_notification_keyboard
+from ...bot.keyboards.notification_keyboard import get_post_notification_keyboard  # ✅ Исправлено
 from ...storage import file_storage
 from aiogram import Bot
 from sqlalchemy import select
@@ -74,7 +74,7 @@ class NotificationService:
         await db.refresh(post, attribute_names=["author", "categories"])
         
         notification_text = NotificationService.format_post_notification(post)
-        post_url = getattr(post, "url", None)  # Сохраняем URL
+        post_url = getattr(post, "url", None)
 
         success_count = 0
         error_count = 0
@@ -92,7 +92,7 @@ class NotificationService:
                 keyboard = get_post_notification_keyboard(
                     post_id=post.id,
                     is_liked=is_liked,
-                    url=post_url  # Передаём URL
+                    url=post_url
                 )
 
                 if post.image_id:
