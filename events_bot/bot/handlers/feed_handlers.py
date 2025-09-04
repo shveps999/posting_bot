@@ -74,13 +74,12 @@ async def handle_feed_navigation(callback: CallbackQuery, db):
 async def return_to_main_menu(callback: CallbackQuery):
     """Возврат в главное меню"""
     try:
-        if callback.message.text:
-            await callback.message.edit_text("Выберите действие:", reply_markup=get_main_keyboard())
-        elif callback.message.caption:
-            await callback.message.edit_caption(caption="Выберите действие:", reply_markup=get_main_keyboard())
-        else:
-            await callback.message.edit_text("Выберите действие:", reply_markup=get_main_keyboard())
-    except TelegramBadRequest as e:
+        await callback.message.delete()  # Удаляем текущее сообщение
+        await callback.message.answer(
+            "Выберите действие:",
+            reply_markup=get_main_keyboard()
+        )
+    except Exception as e:
         if "message is not modified" in str(e):
             pass
         else:
@@ -123,29 +122,18 @@ async def show_feed_page(callback: CallbackQuery, page: int, db):
     if not posts:
         logfire.info(f"Пользователь {callback.from_user.id} — в ленте нет постов")
         try:
-            if callback.message.text:
-                await callback.message.edit_text(
-                    "📮 <b>Смотреть подборку</b>\n\n"
-                    "В подборке пока нет мероприятий по вашим категориям.\n\n"
-                    "Что можно сделать:\n"
-                    "• Выбрать другие категории\n"
-                    "• Создать своё мероприятие\n"
-                    "• Дождаться появления в подборке новых мероприятий",
-                    reply_markup=get_main_keyboard(),
-                    parse_mode="HTML"
-                )
-            elif callback.message.caption:
-                await callback.message.edit_caption(
-                    caption="📮 <b>Смотреть подборку</b>\n\n"
-                            "В подборке пока нет мероприятий по вашим категориям.\n\n"
-                            "Что можно сделать:\n"
-                            "• Выбрать другие категории\n"
-                            "• Создать своё мероприятие\n"
-                            "• Дождаться появления в подборке новых мероприятий",
-                    reply_markup=get_main_keyboard(),
-                    parse_mode="HTML"
-                )
-        except TelegramBadRequest as e:
+            await callback.message.delete()  # Удаляем старое сообщение
+            await callback.message.answer(
+                "📮 <b>Смотреть подборку</b>\n\n"
+                "В подборке пока нет мероприятий по вашим категориям.\n\n"
+                "Что можно сделать:\n"
+                "• Выбрать другие категории\n"
+                "• Создать своё мероприятие\n"
+                "• Дождаться появления в подборке новых мероприятий",
+                reply_markup=get_main_keyboard(),
+                parse_mode="HTML"
+            )
+        except Exception as e:
             if "message is not modified" in str(e):
                 pass
             else:
@@ -158,19 +146,13 @@ async def show_feed_page(callback: CallbackQuery, page: int, db):
     preview_text = format_feed_list(posts, page * POSTS_PER_PAGE + 1, total_posts)
     start_index = page * POSTS_PER_PAGE + 1
     try:
-        if callback.message.text:
-            await callback.message.edit_text(
-                preview_text,
-                reply_markup=get_feed_list_keyboard(posts, page, total_pages, start_index=start_index),
-                parse_mode="HTML",
-            )
-        elif callback.message.caption:
-            await callback.message.edit_caption(
-                caption=preview_text,
-                reply_markup=get_feed_list_keyboard(posts, page, total_pages, start_index=start_index),
-                parse_mode="HTML",
-            )
-    except TelegramBadRequest as e:
+        await callback.message.delete()  # Удаляем старое сообщение
+        await callback.message.answer(
+            preview_text,
+            reply_markup=get_feed_list_keyboard(posts, page, total_pages, start_index=start_index),
+            parse_mode="HTML",
+        )
+    except Exception as e:
         if "message is not modified" in str(e):
             pass
         else:
@@ -331,27 +313,17 @@ async def show_liked_page(callback: CallbackQuery, page: int, db):
     posts = await PostService.get_liked_posts(db, callback.from_user.id, POSTS_PER_PAGE, page * POSTS_PER_PAGE)
     if not posts:
         try:
-            if callback.message.text:
-                await callback.message.edit_text(
-                    "❤️ <b>Мое избранное</b>\n\n"
-                    "У вас пока нет избранных мероприятий\n\n"
-                    "Чтобы добавить:\n"
-                    "• Выберите событие в подборке\n"
-                    "• Нажмите на сердце под постом",
-                    reply_markup=get_main_keyboard(),
-                    parse_mode="HTML"
-                )
-            elif callback.message.caption:
-                await callback.message.edit_caption(
-                    caption="❤️ <b>Мое избранное</b>\n\n"
-                            "У вас пока нет избранных мероприятий\n\n"
-                            "Чтобы добавить:\n"
-                            "• Выберите событие в подборке\n"
-                            "• Нажмите на сердце под постом",
-                    reply_markup=get_main_keyboard(),
-                    parse_mode="HTML"
-                )
-        except TelegramBadRequest as e:
+            await callback.message.delete()  # Удаляем старое сообщение
+            await callback.message.answer(
+                "❤️ <b>Мое избранное</b>\n\n"
+                "У вас пока нет избранных мероприятий\n\n"
+                "Чтобы добавить:\n"
+                "• Выберите событие в подборке\n"
+                "• Нажмите на сердце под постом",
+                reply_markup=get_main_keyboard(),
+                parse_mode="HTML"
+            )
+        except Exception as e:
             if "message is not modified" in str(e):
                 pass
             else:
@@ -362,11 +334,13 @@ async def show_liked_page(callback: CallbackQuery, page: int, db):
     start_index = page * POSTS_PER_PAGE + 1
     text = format_liked_list(posts, start_index, total_posts)
     try:
-        if callback.message.text:
-            await callback.message.edit_text(text, reply_markup=get_liked_list_keyboard(posts, page, total_pages, start_index=start_index), parse_mode="HTML")
-        elif callback.message.caption:
-            await callback.message.edit_caption(caption=text, reply_markup=get_liked_list_keyboard(posts, page, total_pages, start_index=start_index), parse_mode="HTML")
-    except TelegramBadRequest as e:
+        await callback.message.delete()  # Удаляем старое сообщение
+        await callback.message.answer(
+            text,
+            reply_markup=get_liked_list_keyboard(posts, page, total_pages, start_index=start_index),
+            parse_mode="HTML"
+        )
+    except Exception as e:
         if "message is not modified" in str(e):
             pass
         else:
