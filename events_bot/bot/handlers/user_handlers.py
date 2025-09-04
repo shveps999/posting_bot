@@ -34,8 +34,8 @@ async def handle_notify_heart(callback: CallbackQuery, db):
         await callback.message.edit_reply_markup(reply_markup=new_keyboard)
 
         # Ответ пользователю
-        action_text = "добавлено в избранное" if is_liked else "удалено из избранного"
-        await callback.answer(f"✅ Пост {action_text}", show_alert=True)
+        action_text = "добавлено" if is_liked else "удалено"
+        await callback.answer(f"Избранное {action_text}", show_alert=True)
 
     except Exception as e:
         await callback.answer("❌ Ошибка при изменении избранного", show_alert=True)
@@ -157,7 +157,7 @@ async def process_city_selection_callback(
     try:
         await callback.message.delete()
         await callback.message.answer(
-            f"🏙️ Город {city} выбран!\n\nТеперь выберите категории для публикации постов:",
+            f"📍 Город {city} выбран!\n\nТеперь выберите категории интересов, по которым хотите получать уведомления и подборку:",
             reply_markup=get_category_selection_keyboard(categories),
         )
     except Exception as e:
