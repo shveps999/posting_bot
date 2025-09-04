@@ -199,7 +199,6 @@ def format_post_for_feed(
     lines.append("")
     lines.append(f"{post.content}")
     lines.append("")
-    lines.append(f"{current_position} из {total_posts} постов")
     return "\n".join(lines)
 
 
