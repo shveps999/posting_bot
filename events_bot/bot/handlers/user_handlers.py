@@ -244,7 +244,8 @@ async def show_help_callback(callback: CallbackQuery):
 Поддержка: По любым вопросам обращайтесь в поддержку @serdce_help
 """
 
-    await callback.message.edit_text(help_text, reply_markup=get_main_keyboard(), parse_mode="Markdown")
+    # Убираем parse_mode — Telegram будет считать текст обычным
+    await callback.message.edit_text(help_text, reply_markup=get_main_keyboard())
     await callback.answer()
 
 
