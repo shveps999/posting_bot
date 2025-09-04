@@ -199,7 +199,6 @@ def format_post_for_feed(
     lines.append("")
     lines.append(f"{post.content}")
     lines.append("")
-    lines.append(f"💖 Сердечек: {likes_count}")
     lines.append(f"{current_position} из {total_posts} постов")
     return "\n".join(lines)
 
@@ -230,7 +229,6 @@ def format_liked_list(posts, current_position_start: int, total_posts: int) -> s
         lines.append(f"<i>   ⭐️ {category_str}</i>")
         lines.append(f"<i>   🗓 {event_str}</i>")
         lines.append("")
-    lines.append(f"Всего: {total_posts} в избранном")
     lines.append("Нажмите на число, чтобы смотреть событие подробнее")
     return "\n".join(lines)
 
@@ -248,7 +246,7 @@ async def handle_post_heart(callback: CallbackQuery, post_id: int, db, data):
         # Формируем сообщение для пользователя
         action_text = "добавлено" if result["action"] == "added" else "удалено"
 
-        await callback.answer(f"Сердечко {action_text}!", show_alert=True)
+        await callback.answer(f"Избранное {action_text}", show_alert=True)
 
         # Получаем актуальное состояние
         is_liked = await LikeService.is_post_liked_by_user(
