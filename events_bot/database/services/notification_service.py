@@ -1,8 +1,13 @@
 from typing import List
 import logfire
+from sqlalchemy.ext.asyncio import AsyncSession
 from ..repositories import UserRepository
 from ..models import User, Post
 from ...utils import get_clean_category_string
+from ..keyboards.notification_keyboard import get_post_notification_keyboard
+from ...storage import file_storage
+from aiogram import Bot
+from sqlalchemy import select
 
 
 class NotificationService:
@@ -34,33 +39,90 @@ class NotificationService:
     def format_post_notification(post: Post) -> str:
         """Форматировать уведомление о посте"""
         # Безопасно получаем данные, избегая ленивой загрузки
-        # Получаем названия категорий без эмодзи для чистого текста
         category_str = get_clean_category_string(
             post.categories if hasattr(post, "categories") else None
         )
 
-        author_name = "Аноним"
-        if hasattr(post, "author") and post.author is not None:
-            author = post.author
-            author_name = (
-                getattr(author, "first_name", None)
-                or getattr(author, "username", None)
-                or "Аноним"
-            )
-
         event_at = getattr(post, "event_at", None)
         if event_at:
-            # event_at теперь хранится в МСК, показываем как есть
             event_str = event_at.strftime("%d.%m.%Y %H:%M")
         else:
             event_str = ""
 
-        event_line = f"Событие: {event_str} (МСК)" if event_str else ""
+        address = getattr(post, "address", "Не указан")
 
-        return (
-            f"⭐️ <i>{category_str}</i>\n"
-            f"<b>{post.title}</b>\n\n"
-            f"<i>• {event_str}</i>\n"
-            f"<i>• {getattr(post, 'address', 'Не указан')}</i>\n\n"
-            f"{post.content}\n\n"
-        )
+        lines = [
+            f"⭐️ <i>{category_str}</i>",
+            f"<b>{post.title}</b>",
+            "",
+        ]
+        if event_str:
+            lines.append(f"<i>• {event_str}</i>")
+        lines.append(f"<i>• {address}</i>")
+        lines.append("")
+        lines.append(f"{post.content}")
+        lines.append("")
+        lines.append("Нажмите на кнопки ниже для действий")
+
+        return "\n".join(lines)
+
+    @staticmethod
+    async def send_post_notification(bot: Bot, post: Post, users: List[User], db: AsyncSession) -> None:
+        """Отправить уведомления о новом посте пользователям"""
+        logfire.info(f"Отправляем уведомления о посте {post.id} {len(users)} пользователям")
+        
+        await db.refresh(post, attribute_names=["author", "categories"])
+        
+        notification_text = NotificationService.format_post_notification(post)
+        post_url = getattr(post, "url", None)  # Сохраняем URL
+
+        success_count = 0
+        error_count = 0
+
+        for user in users:
+            try:
+                logfire.debug(f"Отправляем уведомление пользователю {user.id}")
+
+                # Проверяем, лайкнул ли пользователь этот пост
+                is_liked = await db.scalar(
+                    select(Post.id).join(Post.likes).where(Post.id == post.id, Post.likes.any(Like.user_id == user.id))
+                ) is not None
+
+                # Формируем клавиатуру с актуальным состоянием и URL
+                keyboard = get_post_notification_keyboard(
+                    post_id=post.id,
+                    is_liked=is_liked,
+                    url=post_url  # Передаём URL
+                )
+
+                if post.image_id:
+                    media_photo = await file_storage.get_media_photo(post.image_id)
+                    if media_photo:
+                        await bot.send_photo(
+                            chat_id=user.id,
+                            photo=media_photo.media,
+                            caption=notification_text,
+                            reply_markup=keyboard,
+                            parse_mode="HTML"
+                        )
+                    else:
+                        await bot.send_message(
+                            chat_id=user.id,
+                            text=notification_text,
+                            reply_markup=keyboard,
+                            parse_mode="HTML"
+                        )
+                else:
+                    await bot.send_message(
+                        chat_id=user.id,
+                        text=notification_text,
+                        reply_markup=keyboard,
+                        parse_mode="HTML"
+                    )
+
+                success_count += 1
+            except Exception as e:
+                logfire.warning(f"Ошибка отправки уведомления пользователю {user.id}: {e}")
+                error_count += 1
+
+        logfire.info(f"Уведомления отправлены: успех={success_count}, ошибки={error_count}")
