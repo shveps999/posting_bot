@@ -7,10 +7,7 @@ def get_post_notification_keyboard(
     is_liked: bool = False,
     url: str | None = None
 ) -> InlineKeyboardMarkup:
-    """
-    Клавиатура для уведомления о новом посте
-    Показывает кнопку "В избранное" или "В избранном" с возможностью переключения
-    """
+    """Клавиатура для уведомления о новом посте"""
     builder = InlineKeyboardBuilder()
     heart_text = "❤️ В избранном" if is_liked else "🤍 В избранное"
     builder.button(
@@ -21,7 +18,6 @@ def get_post_notification_keyboard(
         builder.button(text="🔗 Подробнее", url=url)
     builder.button(text="💌 Главное меню", callback_data="main_menu")
 
-    # Располагаем: максимум по 2 в ряд
     if url:
         builder.adjust(2, 1)
     else:
