@@ -1,18 +1,9 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-from events_bot.database.services import (
-    UserService,
-    CategoryService,
-    PostService,
-    LikeService,
-)
+from events_bot.database.services import UserService, CategoryService, PostService, LikeService
 from events_bot.bot.states import UserStates
-from events_bot.bot.keyboards import (
-    get_main_keyboard,
-    get_category_selection_keyboard,
-    get_city_keyboard,
-)
+from events_bot.bot.keyboards import get_main_keyboard, get_category_selection_keyboard, get_city_keyboard
 from events_bot.utils import get_clean_category_string
 
 router = Router()
@@ -46,9 +37,9 @@ def register_user_handlers(dp: Router):
 @router.message(F.text.in_(["/menu", "/main_menu"]))
 async def cmd_main_menu(message: Message):
     """Обработчик команды /menu для главного меню"""
-    menu_text = "Главное меню"
     await message.answer(
-        menu_text, reply_markup=get_main_keyboard()
+        "Выберите действие:",
+        reply_markup=get_main_keyboard()
     )
 
 
@@ -135,27 +126,12 @@ async def cmd_help(message: Message):
     await message.answer(help_text, reply_markup=get_main_keyboard())
 
 
-async def safe_edit_message(message: Message, text: str, reply_markup=None):
-    """Безопасное редактирование текста или подписи"""
-    try:
-        if message.text:
-            await message.edit_text(text=text, reply_markup=reply_markup)
-        elif message.caption:
-            await message.edit_caption(caption=text, reply_markup=reply_markup)
-        else:
-            await message.edit_text(text=text, reply_markup=reply_markup)
-    except Exception as e:
-        if "message is not modified" not in str(e):
-            raise
-
-
 @router.callback_query(F.data.startswith("city_"))
 async def process_city_selection_callback(
     callback: CallbackQuery, state: FSMContext, db
 ):
     """Обработка выбора города через инлайн-кнопку"""
     city = callback.data[5:]
-
     user = await UserService.register_user(
         db=db,
         telegram_id=callback.from_user.id,
@@ -165,10 +141,16 @@ async def process_city_selection_callback(
     )
     user.city = city
     await db.commit()
-
     categories = await CategoryService.get_all_categories(db)
-    text = f"🏙️ Город {city} выбран!\n\nТеперь выберите категории для публикации постов:"
-    await safe_edit_message(callback.message, text=text, reply_markup=get_category_selection_keyboard(categories))
+    try:
+        await callback.message.delete()
+        await callback.message.answer(
+            f"🏙️ Город {city} выбран!\n\nТеперь выберите категории для публикации постов:",
+            reply_markup=get_category_selection_keyboard(categories),
+        )
+    except Exception as e:
+        if "message is not modified" not in str(e):
+            raise
     await state.set_state(UserStates.waiting_for_categories)
     await callback.answer()
 
@@ -176,11 +158,14 @@ async def process_city_selection_callback(
 @router.callback_query(F.data == "change_city")
 async def change_city_callback(callback: CallbackQuery, state: FSMContext):
     """Изменение города через инлайн-кнопку"""
-    await safe_edit_message(
-        callback.message,
-        text="Выберите новый город:",
-        reply_markup=get_city_keyboard()
-    )
+    try:
+        await callback.message.delete()
+        await callback.message.answer(
+            "Выберите новый город:", reply_markup=get_city_keyboard()
+        )
+    except Exception as e:
+        if "message is not modified" not in str(e):
+            raise
     await state.set_state(UserStates.waiting_for_city)
     await callback.answer()
 
@@ -192,11 +177,15 @@ async def change_category_callback(callback: CallbackQuery, state: FSMContext, d
     user_categories = await UserService.get_user_categories(db, callback.from_user.id)
     selected_ids = [cat.id for cat in user_categories]
 
-    await safe_edit_message(
-        callback.message,
-        text="Выберите категории для публикации постов:",
-        reply_markup=get_category_selection_keyboard(categories, selected_ids)
-    )
+    try:
+        await callback.message.delete()
+        await callback.message.answer(
+            "Выберите категории для публикации постов:",
+            reply_markup=get_category_selection_keyboard(categories, selected_ids),
+        )
+    except Exception as e:
+        if "message is not modified" not in str(e):
+            raise
     await state.set_state(UserStates.waiting_for_categories)
     await callback.answer()
 
@@ -207,7 +196,14 @@ async def show_my_posts_callback(callback: CallbackQuery, db):
     posts = await PostService.get_user_posts(db, callback.from_user.id)
 
     if not posts:
-        await safe_edit_message(callback.message, text="📭 У вас пока нет постов.", reply_markup=get_main_keyboard())
+        try:
+            await callback.message.delete()
+            await callback.message.answer(
+                "📭 У вас пока нет постов.", reply_markup=get_main_keyboard()
+            )
+        except Exception as e:
+            if "message is not modified" not in str(e):
+                raise
         return
 
     response = "📊 Ваши посты:\n\n"
@@ -222,7 +218,12 @@ async def show_my_posts_callback(callback: CallbackQuery, db):
         response += f"📅 {post.created_at.strftime('%d.%m.%Y %H:%M')}\n"
         response += f"📊 {status}\n\n"
 
-    await safe_edit_message(callback.message, text=response, reply_markup=get_main_keyboard())
+    try:
+        await callback.message.delete()
+        await callback.message.answer(response, reply_markup=get_main_keyboard())
+    except Exception as e:
+        if "message is not modified" not in str(e):
+            raise
     await callback.answer()
 
 
@@ -259,7 +260,12 @@ async def show_help_callback(callback: CallbackQuery):
 По любым вопросам обращайтесь в поддержку @serdce_help
 """
 
-    await safe_edit_message(callback.message, text=help_text, reply_markup=get_main_keyboard())
+    try:
+        await callback.message.delete()
+        await callback.message.answer(help_text, reply_markup=get_main_keyboard())
+    except Exception as e:
+        if "message is not modified" not in str(e):
+            raise
     await callback.answer()
 
 
@@ -273,5 +279,6 @@ async def show_main_menu_callback(callback: CallbackQuery):
             reply_markup=get_main_keyboard()
         )
     except Exception as e:
-        logfire.error(f"Ошибка при возврате в главное меню: {e}")
+        if "message is not modified" not in str(e):
+            raise
     await callback.answer()
