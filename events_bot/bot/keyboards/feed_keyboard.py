@@ -86,7 +86,7 @@ def get_feed_post_keyboard(
 ) -> InlineKeyboardMarkup:
     """Клавиатура для детального просмотра поста в ленте"""
     builder = InlineKeyboardBuilder()
-    heart_text = "В избранном ❤️" if is_liked else "В избранное 🤍"
+    heart_text = "❤️ В избранном" if is_liked else "🤍 В избранное"
 
     # Добавляем кнопки в нужном порядке
     builder.button(
@@ -121,7 +121,7 @@ def get_liked_post_keyboard(
 ) -> InlineKeyboardMarkup:
     """Клавиатура для детального просмотра поста в избранном"""
     builder = InlineKeyboardBuilder()
-    heart_text = "В избранном ❤️" if is_liked else "В избранное 🤍"
+    heart_text = "❤️ В избранном" if is_liked else "🤍 В избранное"
 
     builder.button(
         text=heart_text,
