@@ -84,7 +84,7 @@ async def cmd_my_posts(message: Message, db):
 @router.message(F.text == "/change_city")
 async def cmd_change_city(message: Message, state: FSMContext):
     """Обработчик команды /change_city"""
-    await message.answer("Выберите новый город:", reply_markup=get_city_keyboard())
+    await message.answer("Выберите город для получения уведомлений и подборки:", reply_markup=get_city_keyboard())
     await state.set_state(UserStates.waiting_for_city)
 
 
@@ -96,7 +96,7 @@ async def cmd_change_category(message: Message, state: FSMContext, db):
     selected_ids = [cat.id for cat in user_categories]
 
     await message.answer(
-        "Выберите категории для публикации постов:",
+        "Выберите категории интересов для получения уведомлений и подборки:",
         reply_markup=get_category_selection_keyboard(categories, selected_ids),
     )
     await state.set_state(UserStates.waiting_for_categories)
