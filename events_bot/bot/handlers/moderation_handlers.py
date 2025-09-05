@@ -8,7 +8,6 @@ from events_bot.database.services import (
     PostService,
     NotificationService,
 )
-from events_bot.bot.utils import send_post_notification
 from events_bot.storage import file_storage
 from events_bot.database.models import ModerationAction
 from events_bot.bot.keyboards import (
@@ -147,13 +146,21 @@ async def process_moderation_action(callback: CallbackQuery, state: FSMContext, 
                 db, post
             )
             logfire.info(f"Отправляем уведомления {len(users_to_notify)} пользователям")
-            await send_post_notification(callback.bot, post, users_to_notify, db)
+            await NotificationService.send_post_notification(
+                bot=callback.bot,
+                post=post,
+                users=users_to_notify,
+                db=db
+            )
 
             # Уведомляем автора
             try:
-                await callback.bot.send_message(chat_id=post.author_id, text=f"Ваше мероприятие «{post.title}» одобрено и опубликовано 🤟😌")
-            except Exception:
-                pass
+                await callback.bot.send_message(
+                    chat_id=post.author_id,
+                    text=f"Ваше мероприятие «{post.title}» одобрено и опубликовано 🤟😌"
+                )
+            except Exception as e:
+                logfire.warning(f"Не удалось уведомить автора {post.author_id}: {e}")
 
             await callback.answer("Ваше мероприятие одобрено и опубликовано 🤟😌")
             await callback.message.delete()
@@ -162,23 +169,23 @@ async def process_moderation_action(callback: CallbackQuery, state: FSMContext, 
             await callback.answer("❌ Ошибка при одобрении поста")
 
     elif action == "reject":
-        # спрашиваем комментарий у модератора, сохраняя post_id и тип действия
+        # Спрашиваем комментарий у модератора
         await state.update_data(pending_post_id=post_id, pending_action="reject")
         await state.set_state(ModerationStates.waiting_for_comment)
         await callback.message.edit_text("❌ Укажите причину отклонения (комментарий для автора):")
         await callback.answer()
 
     elif action == "changes":
-        # спрашиваем комментарий у модератора, сохраняя post_id в FSM
+        # Спрашиваем комментарий у модератора
         await state.update_data(pending_post_id=post_id)
         await state.set_state(ModerationStates.waiting_for_comment)
         await callback.message.edit_text("📝 Введите комментарий для автора (что исправить):")
         await callback.answer()
 
 
-
 @router.message(ModerationStates.waiting_for_comment)
 async def receive_moderator_comment(message: Message, state: FSMContext, db):
+    """Обработка комментария от модератора"""
     data = await state.get_data()
     post_id = data.get("pending_post_id")
     pending_action = data.get("pending_action", "changes")
@@ -196,9 +203,9 @@ async def receive_moderator_comment(message: Message, state: FSMContext, db):
             try:
                 await message.bot.send_message(
                     chat_id=post.author_id,
-                    text=f"Ваше мероприятие «{post.title}» отклонено. Пожалуйста, создайте его заного с учетом указанного комментария 🥲\n\n"
+                    text=f"Ваше мероприятие «{post.title}» отклонено. Пожалуйста, создайте его заново с учетом указанного комментария 🥲\n\n"
                          f"<b>Комментарий модератора:</b> {comment}",
-                    parse_mode="HTML"  # ✅ Включаем HTML-разметку
+                    parse_mode="HTML"
                 )
             except Exception as e:
                 logfire.error(f"Не удалось отправить сообщение автору {post.author_id}: {e}")
@@ -209,15 +216,13 @@ async def receive_moderator_comment(message: Message, state: FSMContext, db):
             db, post_id, message.from_user.id, comment
         )
         if post:
-            await message.answer(
-                "📝 Запрошены изменения. Комментарий отправлен автору."
-            )
+            await message.answer("📝 Запрошены изменения. Комментарий отправлен автору.")
             try:
                 await message.bot.send_message(
                     chat_id=post.author_id,
-                    text=f"Ваше мероприятие «{post.title}» требует изменений. Пожалуйста, создайте его заного с учетом указанного комментария ✍️🧐\n\n"
+                    text=f"Ваше мероприятие «{post.title}» требует изменений. Пожалуйста, создайте его заново с учетом указанного комментария ✍️🧐\n\n"
                          f"<b>Комментарий модератора:</b> {comment}",
-                    parse_mode="HTML"  # ✅ Включаем HTML-разметку
+                    parse_mode="HTML"
                 )
             except Exception as e:
                 logfire.error(f"Не удалось отправить сообщение автору {post.author_id}: {e}")
