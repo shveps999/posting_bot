@@ -188,6 +188,11 @@ def format_post_for_feed(
     )
     event_at = getattr(post, "event_at", None)
     event_str = _msk_str(event_at)
+    
+    # ✅ Добавлено: получение города и адреса
+    post_city = getattr(post, "city", "Не указан")
+    address = getattr(post, "address", "Не указан")
+
     lines = [
         f"⭐️ <i>{category_str}</i>",
         "",
@@ -195,10 +200,11 @@ def format_post_for_feed(
     ]
     if event_str:
         lines.append(f"<i>🗓 {event_str}</i>")
-    lines.append(f"<i>📍 {post_city}, {getattr(post, 'address', 'Не указан')}</i>")
+    # ✅ Исправлено: используем объявленные переменные
+    lines.append(f"<i>📍 {post_city}, {address}</i>")
     lines.append("")
     lines.append(f"{post.content}")
-    lines.append("")
+
     return "\n".join(lines)
 
 
