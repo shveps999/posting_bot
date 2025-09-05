@@ -55,8 +55,6 @@ class NotificationService:
         lines.append(f"<i>📍 {post_city}, {address}</i>")
         lines.append("")
         lines.append(f"{post.content}")
-        lines.append("")
-        lines.append("Нажмите на кнопки ниже для действий")
 
         return "\n".join(lines)
 
