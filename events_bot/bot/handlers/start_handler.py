@@ -65,9 +65,7 @@ async def show_main_menu(message: Message):
         try:
             await message.answer_animation(
                 animation=MAIN_MENU_GIF_ID,
-                caption=welcome_text,
                 reply_markup=get_main_keyboard(),
-                parse_mode="HTML"
             )
             return
         except Exception as e:
