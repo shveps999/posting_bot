@@ -213,7 +213,7 @@ def format_feed_list(posts, current_position_start: int, total_posts: int) -> st
         lines.append(f"<i>   ⭐️ {category_str}</i>")
         lines.append(f"<i>   🗓 {event_str}</i>")
         lines.append("")
-    lines.append("Нажмите на число, чтобы смотреть событие подробнее")
+    lines.append("ПОДРОБНЕЕ О МЕРОПРИЯТИИ – нажмите на число ниже")
     return "\n".join(lines)
 
 
@@ -228,7 +228,7 @@ def format_liked_list(posts, current_position_start: int, total_posts: int) -> s
         lines.append(f"<i>   ⭐️ {category_str}</i>")
         lines.append(f"<i>   🗓 {event_str}</i>")
         lines.append("")
-    lines.append("Нажмите на число, чтобы смотреть событие подробнее")
+    lines.append("ПОДРОБНЕЕ О МЕРОПРИЯТИИ – нажмите на число ниже")
     return "\n".join(lines)
 
 
