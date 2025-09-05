@@ -400,7 +400,8 @@ async def show_liked_page(callback: CallbackQuery, page: int, db):
                 "У вас пока нет избранных мероприятий\n\n"
                 "Чтобы добавить:\n"
                 "• Выберите событие в подборке\n"
-                "• Нажмите на сердце под постом",
+                "• Перейдите в подробнее события\n"
+                "• Нажмите «В избранное» под постом",
                 reply_markup=get_main_keyboard(),
                 parse_mode="HTML"
             )
