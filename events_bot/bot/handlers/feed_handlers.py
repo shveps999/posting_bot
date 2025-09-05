@@ -195,7 +195,7 @@ def format_post_for_feed(
     ]
     if event_str:
         lines.append(f"<i>🗓 {event_str}</i>")
-    lines.append(f"<i>📍 {getattr(post, 'address', 'Не указан')}</i>")
+    lines.append(f"<i>📍 {post_city}, {getattr(post, 'address', 'Не указан')}</i>")
     lines.append("")
     lines.append(f"{post.content}")
     lines.append("")
