@@ -64,14 +64,11 @@ class ModerationService:
 
         # Добавляем ссылку, если есть
         if url:
-            lines.append(f"🔗 <b>Ссылка:</b> <a href='{url}'>перейти</a>")
+            lines.append(f"🔗 {url}")
 
         lines.extend([
             "",
             f"<i>{post.content}</i>",
-            "",
-            f"👤 <b>Автор:</b> {author_name}",
-            f"📅 <b>Создан:</b> {created_str}"
         ])
 
         return "\n".join(lines)
