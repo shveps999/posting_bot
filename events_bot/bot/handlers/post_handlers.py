@@ -378,6 +378,23 @@ async def process_post_address(message: Message, state: FSMContext, db):
     await state.set_state(PostStates.waiting_for_image)
 
 
+@router.message(F.text.startswith("/delete_post "))
+async def delete_post_handler(message: Message, db):
+    try:
+        post_id = int(message.text.split()[1])
+        success = await PostService.delete_post(db, post_id)
+        
+        if success:
+            await message.answer(f"✅ Пост {post_id} успешно удалён")
+        else:
+            await message.answer(f"❌ Пост {post_id} не найден")
+    except (IndexError, ValueError):
+        await message.answer("❌ Укажите ID поста. Пример: /delete_post 45")
+    except Exception as e:
+        logfire.error(f"Ошибка при удалении поста: {e}")
+        await message.answer("❌ Ошибка при удалении поста")
+
+
 @router.message(PostStates.waiting_for_image)
 async def process_post_image(message: Message, state: FSMContext, db):
     """Обработка изображения поста"""
