@@ -54,8 +54,8 @@ class ModerationService:
         lines = [
             f"<b>Пост на модерацию</b>",
             "",
-            f"<b>{post.title}</b>",
             f"<i>⭐️ {category_str}</i>",
+            f"<b>{post.title}</b>",
             f"<i>🗓 {event_str}</i>",
             "",
             f"📍 <b>Город:</b> {post_city}",
