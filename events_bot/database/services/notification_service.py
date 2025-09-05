@@ -40,6 +40,9 @@ class NotificationService:
         )
         event_at = getattr(post, "event_at", None)
         event_str = event_at.strftime("%d.%m.%Y %H:%M") if event_at else ""
+        
+        # ✅ Добавлены переменные
+        post_city = getattr(post, "city", "Не указан")
         address = getattr(post, "address", "Не указан")
 
         lines = [
@@ -74,12 +77,10 @@ class NotificationService:
             try:
                 logfire.debug(f"Отправляем уведомление пользователю {user.id}")
 
-                # Проверяем, лайкнул ли пользователь
                 is_liked = await db.scalar(
                     select(Like.id).where(Like.user_id == user.id, Like.post_id == post.id)
                 ) is not None
 
-                # Формируем клавиатуру с актуальным состоянием и URL
                 keyboard = get_post_notification_keyboard(
                     post_id=post.id,
                     is_liked=is_liked,
@@ -116,4 +117,4 @@ class NotificationService:
                 logfire.warning(f"Ошибка отправки уведомления пользователю {user.id}: {e}")
                 error_count += 1
 
-        logfire.info(f"Уведомления отправлены: успех={success_count}, ошибки={error_count}")
+        logfire.info(f"Уведомления отправлены: успех={success_count}, ошибок={error_count}")
