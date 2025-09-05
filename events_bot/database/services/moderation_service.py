@@ -26,8 +26,7 @@ class ModerationService:
     @staticmethod
     def format_post_for_moderation(post: Post) -> str:
         """Форматировать пост для модерации"""
-        # Безопасно получаем данные, избегая ленивой загрузки
-        # Получаем чистые названия категорий без эмодзи
+        # Безопасно получаем данные
         category_str = get_clean_category_string(
             post.categories if hasattr(post, "categories") else None
         )
@@ -42,20 +41,40 @@ class ModerationService:
             )
 
         post_city = getattr(post, "city", "Не указан")
+        address = getattr(post, "address", "Не указан")
+        url = getattr(post, "url", None)
+
+        event_at = getattr(post, "event_at", None)
+        event_str = event_at.strftime("%d.%m.%Y %H:%M") if event_at else "Не указано"
 
         created_at = getattr(post, "created_at", None)
-        created_str = created_at.strftime("%d.%m.%Y %H:%M") if created_at else ""
+        created_str = created_at.strftime("%d.%m.%Y %H:%M") if created_at else "Не указано"
 
-        return (
-            f"Пост на модерацию\n\n"
-            f"Заголовок: {post.title}\n"
-            f"Город: {post_city}\n"
-            f"Категории: {category_str}\n"
-            f"Автор: {author_name}\n"
-            f"Создан: {created_str}\n\n"
-            f"Содержание:\n{post.content}\n\n"
-            f"ID поста: {post.id}"
-        )
+        # Формируем текст с HTML-разметкой
+        lines = [
+            f"<b>Пост на модерацию</b>",
+            "",
+            f"<b>{post.title}</b>",
+            f"<i>⭐️ {category_str}</i>",
+            f"<i>🗓 {event_str}</i>",
+            "",
+            f"📍 <b>Город:</b> {post_city}",
+            f"📌 <b>Адрес:</b> {address}",
+        ]
+
+        # Добавляем ссылку, если есть
+        if url:
+            lines.append(f"🔗 <b>Ссылка:</b> <a href='{url}'>перейти</a>")
+
+        lines.extend([
+            "",
+            f"<i>{post.content}</i>",
+            "",
+            f"👤 <b>Автор:</b> {author_name}",
+            f"📅 <b>Создан:</b> {created_str}"
+        ])
+
+        return "\n".join(lines)
 
     @staticmethod
     def get_action_display_name(action: ModerationAction) -> str:
