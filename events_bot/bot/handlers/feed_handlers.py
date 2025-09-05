@@ -230,11 +230,17 @@ def format_liked_list(posts, current_position_start: int, total_posts: int) -> s
         category_str = get_clean_category_string(post.categories)
         event_at = getattr(post, "event_at", None)
         event_str = _msk_str(event_at)
+        # ✅ Получаем город и адрес из поста
+        post_city = getattr(post, "city", "Не указан")
+        address = getattr(post, "address", "Не указан")
+        
         lines.append(f"{idx}. <b>{post.title}</b>")
         lines.append(f"<i>   ⭐️ {category_str}</i>")
         lines.append(f"<i>   🗓 {event_str}</i>")
+        # ✅ Используем переменные post_city и address
         lines.append(f"<i>   📍 {post_city}</i>")
         lines.append("")
+    
     lines.append("<b>Подробнее о мероприятии – нажмите на число ниже</b>")
     return "\n".join(lines)
 
