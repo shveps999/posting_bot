@@ -157,7 +157,7 @@ async def process_city_selection_callback(
     try:
         await callback.message.delete()
         await callback.message.answer(
-            f"📍 Город {city} выбран!\n\nТеперь выберите категории интересов, по которым хотите получать уведомления и подборку:",
+            f"📍 Город {city} выбран!\n\nТеперь выберите категории интересов для кастомизации уведомлений и подборки:",
             reply_markup=get_category_selection_keyboard(categories),
         )
     except Exception as e:
@@ -173,7 +173,7 @@ async def change_city_callback(callback: CallbackQuery, state: FSMContext):
     try:
         await callback.message.delete()
         await callback.message.answer(
-            "Выберите новый город:", reply_markup=get_city_keyboard()
+            "Выберите город для кастомизации уведомлений и подборки:", reply_markup=get_city_keyboard()
         )
     except Exception as e:
         if "message is not modified" not in str(e):
@@ -192,7 +192,7 @@ async def change_category_callback(callback: CallbackQuery, state: FSMContext, d
     try:
         await callback.message.delete()
         await callback.message.answer(
-            "Выберите категории для публикации постов:",
+            "Выберите категории интересов для кастомизации уведомлений и подборки:",
             reply_markup=get_category_selection_keyboard(categories, selected_ids),
         )
     except Exception as e:
