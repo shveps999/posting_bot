@@ -47,8 +47,8 @@ class NotificationService:
 
         lines = [
             f"⭐️ <i>{category_str}</i>",
+            ""
             f"<b>{post.title}</b>",
-            "",
         ]
         if event_str:
             lines.append(f"<i> 🗓 {event_str}</i>")
