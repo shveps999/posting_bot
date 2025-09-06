@@ -1,7 +1,9 @@
+import os
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto, Message
+from aiogram.types import Message, CallbackQuery, FSInputFile, InputMediaPhoto
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
+import logfire
 from events_bot.database.services import PostService, LikeService
 from events_bot.bot.keyboards.main_keyboard import get_main_keyboard
 from events_bot.bot.keyboards.feed_keyboard import (
@@ -11,8 +13,6 @@ from events_bot.bot.keyboards.feed_keyboard import (
     get_liked_post_keyboard,
 )
 from events_bot.storage import file_storage
-import logfire
-from datetime import timezone
 from events_bot.utils import get_clean_category_string
 
 try:
@@ -24,6 +24,10 @@ router = Router()
 
 POSTS_PER_PAGE = 5
 
+# Получаем ID гифок из переменных окружения
+FEED_GIF_ID = os.getenv("FEED_GIF_ID")
+LIKED_GIF_ID = os.getenv("LIKED_GIF_ID")
+
 
 def register_feed_handlers(dp: Router):
     """Регистрация обработчиков ленты"""
@@ -34,6 +38,14 @@ def register_feed_handlers(dp: Router):
 async def cmd_feed(message: Message, db):
     """Обработчик команды /feed"""
     logfire.info(f"Пользователь {message.from_user.id} открывает ленту через команду")
+    
+    # Отправляем гифку ленты, если есть
+    if FEED_GIF_ID:
+        try:
+            await message.answer_animation(animation=FEED_GIF_ID)
+        except Exception as e:
+            logfire.warning(f"Не удалось отправить гифку ленты: {e}")
+    
     await show_feed_page_cmd(message, 0, db)
 
 
@@ -41,7 +53,16 @@ async def cmd_feed(message: Message, db):
 async def show_feed_callback(callback: CallbackQuery, db):
     """Показать ленту постов"""
     logfire.info(f"Пользователь {callback.from_user.id} открывает ленту")
+    
+    # Отправляем гифку ленты, если есть
+    if FEED_GIF_ID:
+        try:
+            await callback.message.answer_animation(animation=FEED_GIF_ID)
+        except Exception as e:
+            logfire.warning(f"Не удалось отправить гифку ленты: {e}")
+    
     await show_feed_page(callback, 0, db)
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("feed_"))
@@ -95,7 +116,6 @@ async def return_to_main_menu(callback: CallbackQuery):
 async def show_feed_page_cmd(message: Message, page: int, db):
     """Показать страницу ленты через сообщение"""
     logfire.info(f"Пользователь {message.from_user.id} загружает страницу {page} ленты")
-    # ✅ Исправлено: get_feed_posts вместо get_liked_posts
     posts = await PostService.get_feed_posts(
         db, message.from_user.id, POSTS_PER_PAGE, page * POSTS_PER_PAGE
     )
@@ -129,7 +149,6 @@ async def show_feed_page(callback: CallbackQuery, page: int, db):
     logfire.info(
         f"Пользователь {callback.from_user.id} загружает страницу {page} ленты"
     )
-    # ✅ Исправлено: get_feed_posts вместо get_liked_posts
     posts = await PostService.get_feed_posts(
         db, callback.from_user.id, POSTS_PER_PAGE, page * POSTS_PER_PAGE
     )
@@ -203,7 +222,9 @@ def format_post_for_feed(
     lines.append(f"<i>📍 {post_city}, {address}</i>")
     lines.append("")
     lines.append(f"{post.content}")
-
+    lines.append("")
+    lines.append(f"💖 Сердечек: {likes_count}")
+    lines.append(f"{current_position} из {total_posts} постов")
     return "\n".join(lines)
 
 
@@ -218,7 +239,7 @@ def format_feed_list(posts, current_position_start: int, total_posts: int) -> st
         lines.append(f"<i>   ⭐️ {category_str}</i>")
         lines.append(f"<i>   🗓 {event_str}</i>")
         lines.append("")
-    lines.append("<b>Подробнее о мероприятии – нажмите на число ниже</b>")
+    lines.append("Нажмите на число, чтобы смотреть событие подробнее")
     return "\n".join(lines)
 
 
@@ -257,13 +278,15 @@ async def handle_post_heart(callback: CallbackQuery, post_id: int, db, data):
 
         # Формируем сообщение для пользователя
         action_text = "добавлено" if result["action"] == "added" else "удалено"
+        likes_count = result["likes_count"]
 
-        await callback.answer(f"Сердечко {action_text}", show_alert=True)
+        response_text = f"Сердечко {action_text}!\n\n"
+        response_text += f"💖 Всего сердечек: {likes_count}"
 
-        # Получаем актуальное состояние
-        is_liked = await LikeService.is_post_liked_by_user(
-            db, callback.from_user.id, post_id
-        )
+        await callback.answer(response_text, show_alert=True)
+
+        # Обновляем клавиатуру с новым количеством лайков
+        is_liked = await LikeService.is_post_liked_by_user(db, callback.from_user.id, post_id)
         current_page = int(data[3])
         total_pages = int(data[4])
         section = data[0]
@@ -279,6 +302,7 @@ async def handle_post_heart(callback: CallbackQuery, post_id: int, db, data):
                 total_pages=total_pages,
                 post_id=post_id,
                 is_liked=is_liked,
+                likes_count=likes_count,
             )
         else:
             new_keyboard = get_feed_post_keyboard(
@@ -286,6 +310,7 @@ async def handle_post_heart(callback: CallbackQuery, post_id: int, db, data):
                 total_pages=total_pages,
                 post_id=post_id,
                 is_liked=is_liked,
+                likes_count=likes_count,
                 url=post_url,
             )
         await callback.message.edit_reply_markup(reply_markup=new_keyboard)
@@ -305,9 +330,7 @@ async def show_post_details(
         await callback.answer("Пост не найден", show_alert=True)
         return
     await db.refresh(post, attribute_names=["author", "categories"])
-    is_liked = await LikeService.is_post_liked_by_user(
-        db, callback.from_user.id, post.id
-    )
+    is_liked = await LikeService.is_post_liked_by_user(db, callback.from_user.id, post.id)
     likes_count = await LikeService.get_post_likes_count(db, post.id)
     total_feed_posts = await PostService.get_feed_posts_count(db, callback.from_user.id)
     text = format_post_for_feed(
@@ -334,6 +357,7 @@ async def show_post_details(
                         total_pages=total_pages,
                         post_id=post.id,
                         is_liked=is_liked,
+                        likes_count=likes_count,
                         url=post_url,
                     ),
                 )
@@ -353,6 +377,7 @@ async def show_post_details(
                 total_pages=total_pages,
                 post_id=post.id,
                 is_liked=is_liked,
+                likes_count=likes_count,
                 url=post_url
             ),
             parse_mode="HTML",
@@ -402,7 +427,6 @@ async def handle_liked_navigation(callback: CallbackQuery, db):
 
 
 async def show_liked_page(callback: CallbackQuery, page: int, db):
-    # ✅ Исправлено: get_liked_posts вместо get_feed_posts
     posts = await PostService.get_liked_posts(
         db, callback.from_user.id, POSTS_PER_PAGE, page * POSTS_PER_PAGE
     )
@@ -451,9 +475,7 @@ async def show_liked_post_details(
         await callback.answer("Мероприятие не найдено", show_alert=True)
         return
     await db.refresh(post, attribute_names=["author", "categories"])
-    is_liked = await LikeService.is_post_liked_by_user(
-        db, callback.from_user.id, post.id
-    )
+    is_liked = await LikeService.is_post_liked_by_user(db, callback.from_user.id, post.id)
     likes_count = await LikeService.get_post_likes_count(db, post.id)
     total_liked = await PostService.get_liked_posts_count(db, callback.from_user.id)
     text = format_post_for_feed(
@@ -477,6 +499,7 @@ async def show_liked_post_details(
                         total_pages=total_pages,
                         post_id=post.id,
                         is_liked=is_liked,
+                        likes_count=likes_count,
                     ),
                 )
             except TelegramBadRequest as e:
@@ -493,6 +516,7 @@ async def show_liked_post_details(
                 total_pages=total_pages,
                 post_id=post.id,
                 is_liked=is_liked,
+                likes_count=likes_count,
             ),
             parse_mode="HTML",
         )
