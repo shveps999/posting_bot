@@ -40,14 +40,7 @@ async def cmd_feed(message: Message, db):
     """Обработчик команды /feed"""
     logfire.info(f"Пользователь {message.from_user.id} открывает ленту через команду")
     
-    # Удаляем предыдущее сообщение, если это не текст команды
-    try:
-        await message.delete()
-    except Exception as e:
-        if "message to delete not found" not in str(e):
-            print(f"Ошибка при удалении сообщения: {e}")
-
-    # Отправляем гифку
+    # Сначала отправляем гифку
     if FEED_GIF_ID:
         try:
             sent = await message.answer_animation(animation=FEED_GIF_ID)
@@ -65,25 +58,28 @@ async def show_feed_callback(callback: CallbackQuery, db):
     """Показать ленту постов"""
     logfire.info(f"Пользователь {callback.from_user.id} открывает ленту")
     
-    # Удаляем предыдущее сообщение
-    try:
-        await callback.message.delete()
-    except Exception as e:
-        if "message to delete not found" not in str(e):
-            print(f"Ошибка удаления сообщения: {e}")
-
-    # Отправляем гифку
+    # Сначала отправляем гифку
     if FEED_GIF_ID:
         try:
             sent = await callback.message.answer_animation(animation=FEED_GIF_ID)
             await show_feed_page_from_message(sent, 0, db)
+            # Только после успешной отправки удаляем старое сообщение
+            try:
+                await callback.message.delete()
+            except Exception:
+                pass
             await callback.answer()
             return
         except Exception as e:
             print(f"Ошибка отправки гифки ленты: {e}")
     
     # Если гифка не отправилась — просто показываем список
-    await show_feed_page(callback, 0, db)
+    try:
+        await callback.message.delete()
+        await show_feed_page(callback, 0, db)
+    except Exception as e:
+        if "message to delete not found" not in str(e):
+            raise
     await callback.answer()
 
 
@@ -91,25 +87,28 @@ async def show_feed_callback(callback: CallbackQuery, db):
 async def show_liked(callback: CallbackQuery, db):
     """Показать избранное с гифкой"""
     
-    # Удаляем предыдущее сообщение
-    try:
-        await callback.message.delete()
-    except Exception as e:
-        if "message to delete not found" not in str(e):
-            print(f"Ошибка удаления сообщения: {e}")
-
-    # Отправляем гифку
+    # Сначала отправляем гифку
     if LIKED_GIF_ID:
         try:
             sent = await callback.message.answer_animation(animation=LIKED_GIF_ID)
             await show_liked_page_from_message(sent, 0, db)
+            # Только после успешной отправки удаляем старое сообщение
+            try:
+                await callback.message.delete()
+            except Exception:
+                pass
             await callback.answer()
             return
         except Exception as e:
             print(f"Ошибка отправки гифки избранного: {e}")
     
     # Если гифка не отправилась — просто показываем список
-    await show_liked_page(callback, 0, db)
+    try:
+        await callback.message.delete()
+        await show_liked_page(callback, 0, db)
+    except Exception as e:
+        if "message to delete not found" not in str(e):
+            raise
     await callback.answer()
 
 
