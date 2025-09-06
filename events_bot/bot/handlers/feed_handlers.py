@@ -55,6 +55,14 @@ async def show_feed_callback(callback: CallbackQuery, db):
     """Показать ленту постов"""
     logfire.info(f"Пользователь {callback.from_user.id} открывает ленту")
     
+    # Удаляем предыдущие системные сообщения (гифки, превью)
+    try:
+        if callback.message.animation or callback.message.text:
+            await callback.message.delete()
+    except Exception as e:
+        if "message to delete not found" not in str(e):
+            print(f"Ошибка удаления сообщения: {e}")
+
     # Отправляем гифку
     if FEED_GIF_ID:
         try:
@@ -386,11 +394,22 @@ async def show_post_details(
 @router.callback_query(F.data == "liked_posts")
 async def show_liked(callback: CallbackQuery, db):
     """Показать избранное с гифкой"""
+    
+    # Удаляем предыдущие системные сообщения
+    try:
+        if callback.message.animation or callback.message.text:
+            await callback.message.delete()
+    except Exception as e:
+        if "message to delete not found" not in str(e):
+            print(f"Ошибка удаления сообщения: {e}")
+
+    # Отправляем гифку
     if LIKED_GIF_ID:
         try:
             await callback.message.answer_animation(animation=LIKED_GIF_ID)
         except Exception as e:
             print(f"Ошибка отправки гифки избранного: {e}")
+    
     await show_liked_page(callback, 0, db)
 
 
