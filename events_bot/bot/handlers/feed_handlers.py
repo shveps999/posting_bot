@@ -2,7 +2,7 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto, Message
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
-from events_bot.database.services import PostService, LikeService, UserService
+from events_bot.database.services import PostService, LikeService
 from events_bot.bot.keyboards.main_keyboard import get_main_keyboard
 from events_bot.bot.keyboards.feed_keyboard import (
     get_feed_list_keyboard,
@@ -40,7 +40,7 @@ async def cmd_feed(message: Message, db):
     """Обработчик команды /feed"""
     logfire.info(f"Пользователь {message.from_user.id} открывает ленту через команду")
     
-    # Удаляем старое сообщение, если это не команда (например, меню)
+    # Удаляем старое сообщение
     try:
         await message.delete()
     except Exception:
@@ -53,7 +53,8 @@ async def cmd_feed(message: Message, db):
                 caption="✨ Загружаю подборку...",
                 parse_mode="HTML"
             )
-            await show_feed_page_from_animation(sent, 0, db)
+            # Используем message.from_user.id
+            await show_feed_page_from_animation(sent, 0, db, user_id=message.from_user.id)
             return
         except Exception as e:
             print(f"Ошибка отправки гифки ленты: {e}")
@@ -66,7 +67,6 @@ async def show_feed_callback(callback: CallbackQuery, db):
     """Показать ленту постов"""
     logfire.info(f"Пользователь {callback.from_user.id} открывает ленту")
     
-    # Удаляем старое сообщение (например, меню)
     try:
         await callback.message.delete()
     except Exception:
@@ -79,7 +79,8 @@ async def show_feed_callback(callback: CallbackQuery, db):
                 caption="✨ Загружаю подборку...",
                 parse_mode="HTML"
             )
-            await show_feed_page_from_animation(sent, 0, db)
+            # Используем callback.from_user.id
+            await show_feed_page_from_animation(sent, 0, db, user_id=callback.from_user.id)
             await callback.answer()
             return
         except Exception as e:
@@ -92,7 +93,6 @@ async def show_feed_callback(callback: CallbackQuery, db):
 @router.callback_query(F.data == "liked_posts")
 async def show_liked(callback: CallbackQuery, db):
     """Показать избранное с гифкой"""
-    # Удаляем старое сообщение
     try:
         await callback.message.delete()
     except Exception:
@@ -105,7 +105,8 @@ async def show_liked(callback: CallbackQuery, db):
                 caption="❤️ Загружаю избранное...",
                 parse_mode="HTML"
             )
-            await show_liked_page_from_animation(sent, 0, db)
+            # Используем callback.from_user.id
+            await show_liked_page_from_animation(sent, 0, db, user_id=callback.from_user.id)
             await callback.answer()
             return
         except Exception as e:
@@ -117,7 +118,6 @@ async def show_liked(callback: CallbackQuery, db):
 
 @router.callback_query(F.data.startswith("feed_"))
 async def handle_feed_navigation(callback: CallbackQuery, db):
-    """Обработка навигации по ленте"""
     data = callback.data.split("_")
     action = data[1]
     logfire.info(f"Пользователь {callback.from_user.id} навигация по ленте: {action}")
@@ -128,7 +128,7 @@ async def handle_feed_navigation(callback: CallbackQuery, db):
             new_page = (
                 max(0, current_page - 1) if action == "prev" else current_page + 1
             )
-            await show_feed_page_from_animation(callback.message, new_page, db)
+            await show_feed_page_from_animation(callback.message, new_page, db, user_id=callback.from_user.id)
         elif action == "open":
             post_id = int(data[2])
             current_page = int(data[3])
@@ -136,7 +136,7 @@ async def handle_feed_navigation(callback: CallbackQuery, db):
             await show_post_details(callback, post_id, current_page, total_pages, db)
         elif action == "back":
             current_page = int(data[2])
-            await show_feed_page_from_animation(callback.message, current_page, db)
+            await show_feed_page_from_animation(callback.message, current_page, db, user_id=callback.from_user.id)
         elif action == "heart":
             post_id = int(data[2])
             current_page = int(data[3])
@@ -149,7 +149,6 @@ async def handle_feed_navigation(callback: CallbackQuery, db):
 
 @router.callback_query(F.data == "main_menu")
 async def return_to_main_menu(callback: CallbackQuery):
-    """Возврат в главное меню"""
     try:
         await callback.message.delete()
         await callback.message.answer(
@@ -168,12 +167,11 @@ async def return_to_main_menu(callback: CallbackQuery):
 
 async def show_feed_page_cmd(message: Message, page: int, db):
     """Показать страницу ленты через сообщение"""
-    logfire.info(f"Пользователь {message.from_user.id} загружает страницу {page} ленты")
-    posts = await PostService.get_feed_posts(
-        db, message.from_user.id, POSTS_PER_PAGE, page * POSTS_PER_PAGE
-    )
+    user_id = message.from_user.id
+    logfire.info(f"Пользователь {user_id} загружает страницу {page} ленты")
+    posts = await PostService.get_feed_posts(db, user_id, POSTS_PER_PAGE, page * POSTS_PER_PAGE)
     if not posts:
-        logfire.info(f"Пользователь {message.from_user.id} — в ленте нет постов")
+        logfire.info(f"Пользователь {user_id} — в ленте нет постов")
         await message.answer(
             "В подборке пока нет мероприятий по вашим категориям.\n\n"
             "Что можно сделать:\n"
@@ -184,7 +182,7 @@ async def show_feed_page_cmd(message: Message, page: int, db):
             parse_mode="HTML"
         )
         return
-    total_posts = await PostService.get_feed_posts_count(db, message.from_user.id)
+    total_posts = await PostService.get_feed_posts_count(db, user_id)
     total_pages = (total_posts + POSTS_PER_PAGE - 1) // POSTS_PER_PAGE
     for post in posts:
         await db.refresh(post, attribute_names=["categories"])
@@ -199,14 +197,11 @@ async def show_feed_page_cmd(message: Message, page: int, db):
 
 async def show_feed_page(callback: CallbackQuery, page: int, db):
     """Показать страницу ленты"""
-    logfire.info(
-        f"Пользователь {callback.from_user.id} загружает страницу {page} ленты"
-    )
-    posts = await PostService.get_feed_posts(
-        db, callback.from_user.id, POSTS_PER_PAGE, page * POSTS_PER_PAGE
-    )
+    user_id = callback.from_user.id
+    logfire.info(f"Пользователь {user_id} загружает страницу {page} ленты")
+    posts = await PostService.get_feed_posts(db, user_id, POSTS_PER_PAGE, page * POSTS_PER_PAGE)
     if not posts:
-        logfire.info(f"Пользователь {callback.from_user.id} — в ленте нет постов")
+        logfire.info(f"Пользователь {user_id} — в ленте нет постов")
         try:
             await callback.message.delete()
             await callback.message.answer(
@@ -224,7 +219,7 @@ async def show_feed_page(callback: CallbackQuery, page: int, db):
             else:
                 raise
         return
-    total_posts = await PostService.get_feed_posts_count(db, callback.from_user.id)
+    total_posts = await PostService.get_feed_posts_count(db, user_id)
     total_pages = (total_posts + POSTS_PER_PAGE - 1) // POSTS_PER_PAGE
     for post in posts:
         await db.refresh(post, attribute_names=["categories"])
@@ -244,11 +239,10 @@ async def show_feed_page(callback: CallbackQuery, page: int, db):
             raise
 
 
-async def show_feed_page_from_animation(message: Message, page: int, db):
+async def show_feed_page_from_animation(message: Message, page: int, db, user_id: int):
     """Показать ленту, редактируя подпись гифки"""
-    posts = await PostService.get_feed_posts(
-        db, message.from_user.id, POSTS_PER_PAGE, page * POSTS_PER_PAGE
-    )
+    logfire.info(f"Загружаем ленту для пользователя {user_id}, страница {page}")
+    posts = await PostService.get_feed_posts(db, user_id, POSTS_PER_PAGE, page * POSTS_PER_PAGE)
     if not posts:
         try:
             await message.edit_caption(
@@ -266,7 +260,7 @@ async def show_feed_page_from_animation(message: Message, page: int, db):
             else:
                 raise
         return
-    total_posts = await PostService.get_feed_posts_count(db, message.from_user.id)
+    total_posts = await PostService.get_feed_posts_count(db, user_id)
     total_pages = (total_posts + POSTS_PER_PAGE - 1) // POSTS_PER_PAGE
     for post in posts:
         await db.refresh(post, attribute_names=["categories"])
@@ -285,11 +279,10 @@ async def show_feed_page_from_animation(message: Message, page: int, db):
             raise
 
 
-async def show_liked_page_from_animation(message: Message, page: int, db):
+async def show_liked_page_from_animation(message: Message, page: int, db, user_id: int):
     """Показать избранное, редактируя подпись гифки"""
-    posts = await PostService.get_liked_posts(
-        db, message.from_user.id, POSTS_PER_PAGE, page * POSTS_PER_PAGE
-    )
+    logfire.info(f"Загружаем избранное для пользователя {user_id}, страница {page}")
+    posts = await PostService.get_liked_posts(db, user_id, POSTS_PER_PAGE, page * POSTS_PER_PAGE)
     if not posts:
         try:
             await message.edit_caption(
@@ -307,7 +300,7 @@ async def show_liked_page_from_animation(message: Message, page: int, db):
             else:
                 raise
         return
-    total_posts = await PostService.get_liked_posts_count(db, message.from_user.id)
+    total_posts = await PostService.get_liked_posts_count(db, user_id)
     total_pages = (total_posts + POSTS_PER_PAGE - 1) // POSTS_PER_PAGE
     start_index = page * POSTS_PER_PAGE + 1
     text = format_liked_list(posts, start_index, total_posts)
@@ -333,14 +326,11 @@ def _msk_str(dt) -> str:
 def format_post_for_feed(
     post, current_position: int, total_posts: int, likes_count: int = 0
 ) -> str:
-    """Формат карточки поста (детально)"""
     category_str = get_clean_category_string(
         post.categories if hasattr(post, "categories") else None
     )
     event_at = getattr(post, "event_at", None)
     event_str = _msk_str(event_at)
-    
-    # ✅ Добавлено: получение города и адреса
     post_city = getattr(post, "city", "Не указан")
     address = getattr(post, "address", "Не указан")
 
@@ -351,7 +341,6 @@ def format_post_for_feed(
     ]
     if event_str:
         lines.append(f"<i>🗓 {event_str}</i>")
-    # ✅ Исправлено: используем объявленные переменные
     lines.append(f"<i>📍 {post_city}, {address}</i>")
     lines.append("")
     lines.append(f"{post.content}")
@@ -360,7 +349,6 @@ def format_post_for_feed(
 
 
 def format_feed_list(posts, current_position_start: int, total_posts: int) -> str:
-    """Формат списка кратких карточек 4-5 постов (лента)"""
     lines = ["", ""]
     for idx, post in enumerate(posts, start=current_position_start):
         category_str = get_clean_category_string(post.categories)
@@ -375,20 +363,17 @@ def format_feed_list(posts, current_position_start: int, total_posts: int) -> st
 
 
 def format_liked_list(posts, current_position_start: int, total_posts: int) -> str:
-    """Формат списка кратких карточек 4-5 постов (избранное)"""
     lines = ["", ""]
     for idx, post in enumerate(posts, start=current_position_start):
         category_str = get_clean_category_string(post.categories)
         event_at = getattr(post, "event_at", None)
         event_str = _msk_str(event_at)
-        # ✅ Получаем город и адрес из поста
         post_city = getattr(post, "city", "Не указан")
         address = getattr(post, "address", "Не указан")
         
         lines.append(f"{idx}. <b>{post.title}</b>")
         lines.append(f"<i>   ⭐️ {category_str}</i>")
         lines.append(f"<i>   🗓 {event_str}</i>")
-        # ✅ Используем переменные post_city и address
         lines.append(f"<i>   📍 {post_city}</i>")
         lines.append("")
     
@@ -397,33 +382,20 @@ def format_liked_list(posts, current_position_start: int, total_posts: int) -> s
 
 
 async def handle_post_heart(callback: CallbackQuery, post_id: int, db, data):
-    """Обработка нажатия на сердечко"""
-    logfire.info(
-        f"Пользователь {callback.from_user.id} нажал на сердечко посту {post_id}"
-    )
-
+    logfire.info(f"Пользователь {callback.from_user.id} нажал на сердечко посту {post_id}")
     try:
-        # Переключаем лайк в БД
         result = await LikeService.toggle_like(db, callback.from_user.id, post_id)
-
-        # Формируем сообщение для пользователя
         action_text = "добавлено" if result["action"] == "added" else "удалено"
-
         await callback.answer(f"Избранное {action_text}", show_alert=True)
 
-        # Получаем актуальное состояние
-        is_liked = await LikeService.is_post_liked_by_user(
-            db, callback.from_user.id, post_id
-        )
+        is_liked = await LikeService.is_post_liked_by_user(db, callback.from_user.id, post_id)
         current_page = int(data[3])
         total_pages = int(data[4])
         section = data[0]
 
-        # Получаем URL поста
         post = await PostService.get_post_by_id(db, post_id)
         post_url = getattr(post, "url", None)
 
-        # Обновляем клавиатуру с сохранением URL
         if section == "liked":
             new_keyboard = get_liked_post_keyboard(
                 current_page=current_page,
@@ -440,9 +412,6 @@ async def handle_post_heart(callback: CallbackQuery, post_id: int, db, data):
                 url=post_url,
             )
         await callback.message.edit_reply_markup(reply_markup=new_keyboard)
-
-        logfire.info(f"Сердечко посту {post_id} успешно {action_text}")
-
     except Exception as e:
         logfire.error(f"Ошибка при сохранении сердечка посту {post_id}: {e}")
         await callback.answer("❌ Ошибка при сохранении сердечка", show_alert=True)
@@ -456,9 +425,7 @@ async def show_post_details(
         await callback.answer("Пост не найден", show_alert=True)
         return
     await db.refresh(post, attribute_names=["author", "categories"])
-    is_liked = await LikeService.is_post_liked_by_user(
-        db, callback.from_user.id, post.id
-    )
+    is_liked = await LikeService.is_post_liked_by_user(db, callback.from_user.id, post.id)
     likes_count = await LikeService.get_post_likes_count(db, post.id)
     total_feed_posts = await PostService.get_feed_posts_count(db, callback.from_user.id)
     text = format_post_for_feed(
@@ -469,7 +436,6 @@ async def show_post_details(
     )
     post_url = getattr(post, "url", None)
 
-    # Если у поста есть изображение
     if post.image_id:
         media_photo = await file_storage.get_media_photo(post.image_id)
         if media_photo:
@@ -495,7 +461,6 @@ async def show_post_details(
                     raise
             return
 
-    # Для текстовых сообщений
     try:
         await callback.message.edit_text(
             text,
@@ -526,17 +491,15 @@ async def handle_liked_navigation(callback: CallbackQuery, db):
             new_page = (
                 max(0, current_page - 1) if action == "prev" else current_page + 1
             )
-            await show_liked_page_from_animation(callback.message, new_page, db)
+            await show_liked_page_from_animation(callback.message, new_page, db, user_id=callback.from_user.id)
         elif action == "open":
             post_id = int(data[2])
             current_page = int(data[3])
             total_pages = int(data[4])
-            await show_liked_post_details(
-                callback, post_id, current_page, total_pages, db
-            )
+            await show_liked_post_details(callback, post_id, current_page, total_pages, db)
         elif action == "back":
             current_page = int(data[2])
-            await show_liked_page_from_animation(callback.message, current_page, db)
+            await show_liked_page_from_animation(callback.message, current_page, db, user_id=callback.from_user.id)
         elif action == "heart":
             post_id = int(data[2])
             current_page = int(data[3])
@@ -548,9 +511,8 @@ async def handle_liked_navigation(callback: CallbackQuery, db):
 
 
 async def show_liked_page(callback: CallbackQuery, page: int, db):
-    posts = await PostService.get_liked_posts(
-        db, callback.from_user.id, POSTS_PER_PAGE, page * POSTS_PER_PAGE
-    )
+    user_id = callback.from_user.id
+    posts = await PostService.get_liked_posts(db, user_id, POSTS_PER_PAGE, page * POSTS_PER_PAGE)
     if not posts:
         try:
             await callback.message.delete()
@@ -569,7 +531,7 @@ async def show_liked_page(callback: CallbackQuery, page: int, db):
             else:
                 raise
         return
-    total_posts = await PostService.get_liked_posts_count(db, callback.from_user.id)
+    total_posts = await PostService.get_liked_posts_count(db, user_id)
     total_pages = (total_posts + POSTS_PER_PAGE - 1) // POSTS_PER_PAGE
     start_index = page * POSTS_PER_PAGE + 1
     text = format_liked_list(posts, start_index, total_posts)
@@ -595,9 +557,7 @@ async def show_liked_post_details(
         await callback.answer("Мероприятие не найдено", show_alert=True)
         return
     await db.refresh(post, attribute_names=["author", "categories"])
-    is_liked = await LikeService.is_post_liked_by_user(
-        db, callback.from_user.id, post.id
-    )
+    is_liked = await LikeService.is_post_liked_by_user(db, callback.from_user.id, post.id)
     likes_count = await LikeService.get_post_likes_count(db, post.id)
     total_liked = await PostService.get_liked_posts_count(db, callback.from_user.id)
     text = format_post_for_feed(
