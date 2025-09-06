@@ -36,38 +36,52 @@ def register_feed_handlers(dp: Router):
 
 
 @router.message(F.text == "/feed")
-async def cmd_feed(message: Message, db):
+async def cmd_feed(message: Message, db, state: FSMContext):
     """Обработчик команды /feed"""
     logfire.info(f"Пользователь {message.from_user.id} открывает ленту через команду")
-    
-    # Отправляем гифку
-    if FEED_GIF_ID:
+
+    # Получаем текущий раздел
+    data = await state.get_data()
+    current_section = data.get("current_section")
+
+    # Показываем гифку только при первом входе или после другого раздела
+    if FEED_GIF_ID and current_section != "feed":
         try:
             await message.answer_animation(animation=FEED_GIF_ID)
         except Exception as e:
             print(f"Ошибка отправки гифки ленты: {e}")
-    
+
+    # Обновляем раздел
+    await state.update_data(current_section="feed")
+
     await show_feed_page_cmd(message, 0, db)
 
 
 @router.callback_query(F.data == "feed")
-async def show_feed_callback(callback: CallbackQuery, db):
+async def show_feed_callback(callback: CallbackQuery, db, state: FSMContext):
     """Показать ленту постов"""
     logfire.info(f"Пользователь {callback.from_user.id} открывает ленту")
-    
-    # Отправляем гифку ТОЛЬКО если предыдущее сообщение — не анимация
-    if FEED_GIF_ID and not callback.message.animation:
+
+    # Получаем текущий раздел
+    data = await state.get_data()
+    current_section = data.get("current_section")
+
+    # Показываем гифку только при первом входе или после другого раздела
+    if FEED_GIF_ID and current_section != "feed":
         try:
             await callback.message.answer_animation(animation=FEED_GIF_ID)
         except Exception as e:
             print(f"Ошибка отправки гифки ленты: {e}")
-    
+
+    # Обновляем раздел
+    await state.update_data(current_section="feed")
+
     await show_feed_page(callback, 0, db)
     await callback.answer()
 
 
 @router.callback_query(F.data.startswith("feed_"))
-async def handle_feed_navigation(callback: CallbackQuery, db):
+async def handle_feed_navigation(callback: CallbackQuery, db, state: FSMContext):
     """Обработка навигации по ленте"""
     data = callback.data.split("_")
     action = data[1]
@@ -99,7 +113,7 @@ async def handle_feed_navigation(callback: CallbackQuery, db):
 
 
 @router.callback_query(F.data == "main_menu")
-async def return_to_main_menu(callback: CallbackQuery):
+async def return_to_main_menu(callback: CallbackQuery, state: FSMContext):
     """Возврат в главное меню"""
     try:
         await callback.message.delete()
@@ -107,6 +121,8 @@ async def return_to_main_menu(callback: CallbackQuery):
             "Выберите действие:",
             reply_markup=get_main_keyboard()
         )
+        # Обновляем раздел
+        await state.update_data(current_section="menu")
     except Exception as e:
         if "message is not modified" in str(e):
             pass
@@ -385,22 +401,29 @@ async def show_post_details(
 
 
 @router.callback_query(F.data == "liked_posts")
-async def show_liked(callback: CallbackQuery, db):
+async def show_liked(callback: CallbackQuery, db, state: FSMContext):
     """Показать избранное с гифкой"""
     
-    # Отправляем гифку ТОЛЬКО если предыдущее сообщение — не анимация
-    if LIKED_GIF_ID and not callback.message.animation:
+    # Получаем текущий раздел
+    data = await state.get_data()
+    current_section = data.get("current_section")
+
+    # Показываем гифку только при первом входе или после другого раздела
+    if LIKED_GIF_ID and current_section != "liked":
         try:
             await callback.message.answer_animation(animation=LIKED_GIF_ID)
         except Exception as e:
             print(f"Ошибка отправки гифки избранного: {e}")
-    
+
+    # Обновляем раздел
+    await state.update_data(current_section="liked")
+
     await show_liked_page(callback, 0, db)
     await callback.answer()
 
 
 @router.callback_query(F.data.startswith("liked_"))
-async def handle_liked_navigation(callback: CallbackQuery, db):
+async def handle_liked_navigation(callback: CallbackQuery, db, state: FSMContext):
     data = callback.data.split("_")
     action = data[1]
     try:
