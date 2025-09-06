@@ -5,7 +5,6 @@ from typing import Union
 import logfire
 from sqlalchemy import select
 from events_bot.database.services import PostService, UserService, CategoryService
-from events_bot.database.models import Category, Post
 from events_bot.database.models import Category
 from events_bot.bot.states import PostStates
 from events_bot.bot.keyboards import (
@@ -16,100 +15,14 @@ from events_bot.bot.keyboards import (
 from events_bot.storage import file_storage
 from loguru import logger
 from datetime import timezone
-import re
 
 router = Router()
 
-# Список запрещённых слов
-BANNED_WORDS = [
-    "спам", "реклама", "казино", "букмекер", "наркотики", "проститутки",
-    "заработок", "деньги", "дешево", "бесплатно", "выигрыш", "лотерея",
-    "инвестиции", "криптовалюта", "биткоин", "кредит", "ссуда", "раскрутка",
-    "прайс", "цена", "скидка", "акция", "распродажа", "оптовая продажа",
-    "мат", "хуй", "блять", "ебать", "сука", "пидор", "гондон", "шлюха"
-]
-
-# Подозрительные ссылки
-SPAM_LINK_PATTERNS = [
-    r"@[\w]+",           # Telegram юзернеймы
-    r"t\.me/[\w]+",      # t.me ссылки
-    r"telegram\.me/[\w]+", 
-    r"wa\.me/[\d]+",     # WhatsApp
-    r"whatsapp", "viber", "vk\.com", "vkontakte"
-]
-
-def contains_banned_words(text: str) -> bool:
-    """Проверяет, есть ли запрещённые слова"""
-    text_lower = text.lower()
-    return any(word in text_lower for word in BANNED_WORDS)
-
-def contains_spam_links(text: str) -> bool:
-    """Проверяет, есть ли подозрительные ссылки"""
-    text_lower = text.lower()
-    return any(re.search(pattern, text_lower) for pattern in SPAM_LINK_PATTERNS)
-
-def is_suspicious_post(title: str, content: str, url: str | None) -> tuple[bool, str]:
-    """Проверяет, подозрителен ли пост"""
-    reasons = []
-    full_text = f"{title} {content} {url or ''}"
-    
-    if contains_banned_words(full_text):
-        reasons.append("запрещённые слова")
-    
-    if contains_spam_links(full_text):
-        reasons.append("подозрительные ссылки")
-    
-    return len(reasons) > 0, ", ".join(reasons) if reasons else ""
-
-async def send_post_to_moderation_with_check(bot, post: Post, db):
-    """Отправить пост на модерацию с пометкой, если подозрительный"""
-    is_suspicious, reason = is_suspicious_post(
-        post.title, post.content, getattr(post, "url", None)
-    )
-    
-    moderation_group_id = os.getenv("MODERATION_GROUP_ID")
-    if not moderation_group_id:
-        logfire.error("MODERATION_GROUP_ID не установлен")
-        return
-
-    # Форматируем текст
-    moderation_text = ModerationService.format_post_for_moderation(post)
-    
-    # Добавляем пометку, если подозрительный
-    if is_suspicious:
-        warning = f"⚠️ <b>ПОДОЗРИТЕЛЬНЫЙ ПОСТ</b>\n"
-        warning += f"🔍 Причина: {reason}\n\n"
-        moderation_text = warning + moderation_text
-
-    moderation_keyboard = get_moderation_keyboard(post.id)
-    
-    try:
-        if post.image_id:
-            media_photo = await file_storage.get_media_photo(post.image_id)
-            if media_photo:
-                await bot.send_photo(
-                    chat_id=moderation_group_id,
-                    photo=media_photo.media,
-                    caption=moderation_text,
-                    reply_markup=moderation_keyboard,
-                    parse_mode="HTML",
-                )
-                return
-        
-        await bot.send_message(
-            chat_id=moderation_group_id,
-            text=moderation_text,
-            reply_markup=moderation_keyboard,
-            parse_mode="HTML",
-        )
-    except Exception as e:
-        logfire.error(f"Ошибка отправки поста на модерацию: {e}")
-        import traceback
-        logfire.error(f"Стек ошибки: {traceback.format_exc()}")
 
 def register_post_handlers(dp: Router):
     """Регистрация обработчиков постов"""
     dp.include_router(router)
+
 
 @router.message(F.text == "/create_post")
 async def cmd_create_post(message: Message, state: FSMContext, db):
@@ -123,6 +36,7 @@ async def cmd_create_post(message: Message, state: FSMContext, db):
     )
     await state.set_state(PostStates.waiting_for_city_selection)
 
+
 @router.message(F.text == "/cancel")
 async def cmd_cancel_post(message: Message, state: FSMContext, db):
     """Отмена создания поста на любом этапе"""
@@ -131,6 +45,7 @@ async def cmd_cancel_post(message: Message, state: FSMContext, db):
     await message.answer(
         "Создание мероприятия отменено ✖️", reply_markup=get_main_keyboard()
     )
+
 
 @router.callback_query(F.data == "create_post")
 async def start_create_post(callback: CallbackQuery, state: FSMContext, db):
@@ -144,6 +59,7 @@ async def start_create_post(callback: CallbackQuery, state: FSMContext, db):
     )
     await state.set_state(PostStates.waiting_for_city_selection)
     await callback.answer()
+
 
 @router.callback_query(F.data == "cancel_post")
 async def cancel_post_creation(callback: CallbackQuery, state: FSMContext, db):
@@ -162,6 +78,7 @@ async def cancel_post_creation(callback: CallbackQuery, state: FSMContext, db):
         if "message is not modified" not in str(e):
             raise
     await callback.answer()
+
 
 @router.callback_query(
     PostStates.waiting_for_city_selection, F.data == "post_city_select_all"
@@ -189,6 +106,7 @@ async def select_all_cities(callback: CallbackQuery, state: FSMContext, db):
         else:
             raise
     await callback.answer("Все города выбраны!")
+
 
 @router.callback_query(
     PostStates.waiting_for_city_selection, F.data == "post_city_confirm"
@@ -223,6 +141,7 @@ async def confirm_city_selection(callback: CallbackQuery, state: FSMContext, db)
             raise
     await state.set_state(PostStates.waiting_for_category_selection)
     await callback.answer()
+
 
 @router.callback_query(
     PostStates.waiting_for_city_selection, F.data.startswith("post_city_")
@@ -259,6 +178,7 @@ async def process_post_city_selection(callback: CallbackQuery, state: FSMContext
             raise
     await callback.answer()
 
+
 @router.callback_query(
     PostStates.waiting_for_category_selection, F.data.startswith("post_category_")
 )
@@ -291,6 +211,7 @@ async def process_post_category_selection(
         else:
             raise
     await callback.answer()
+
 
 @router.callback_query(
     PostStates.waiting_for_category_selection, F.data == "confirm_post_categories"
@@ -340,6 +261,7 @@ async def confirm_post_categories(callback: CallbackQuery, state: FSMContext, db
     )
     await callback.answer()
 
+
 @router.message(PostStates.waiting_for_title)
 @logger.catch
 async def process_post_title(message: Message, state: FSMContext, db):
@@ -360,6 +282,7 @@ async def process_post_title(message: Message, state: FSMContext, db):
         f"Состояние изменено на waiting_for_content для пользователя {message.from_user.id}"
     )
 
+
 @router.message(PostStates.waiting_for_content)
 async def process_post_content(message: Message, state: FSMContext, db):
     """Обработка содержания поста"""
@@ -372,6 +295,7 @@ async def process_post_content(message: Message, state: FSMContext, db):
         "🔗 Введите ссылку на сайт / канал / сообщество мероприятия (или отправьте контакты организатора в формате https://).\n\nЭта ссылка будет прикреплена к вашему анонсу:"
     )
     await state.set_state(PostStates.waiting_for_url)
+
 
 @router.message(PostStates.waiting_for_url)
 async def process_post_url(message: Message, state: FSMContext, db):
@@ -387,6 +311,7 @@ async def process_post_url(message: Message, state: FSMContext, db):
         "🗓 Введите дату и время события в формате ДД.ММ.ГГГГ ЧЧ:ММ (например, 25.12.2025 18:30)\n\n"
     )
     await state.set_state(PostStates.waiting_for_event_datetime)
+
 
 @router.message(PostStates.waiting_for_event_datetime)
 async def process_event_datetime(message: Message, state: FSMContext, db):
@@ -437,6 +362,7 @@ async def process_event_datetime(message: Message, state: FSMContext, db):
         "✖️ Неверный формат. Пример: 25.12.2025 18:30. Попробуйте снова."
     )
 
+
 @router.message(PostStates.waiting_for_address)
 async def process_post_address(message: Message, state: FSMContext, db):
     """Обработка адреса мероприятия"""
@@ -450,6 +376,7 @@ async def process_post_address(message: Message, state: FSMContext, db):
         "🎆 Отправьте изображение для мероприятия (или нажмите /skip для пропуска):"
     )
     await state.set_state(PostStates.waiting_for_image)
+
 
 @router.message(F.text.startswith("/delete_post "))
 async def delete_post_handler(message: Message, db):
@@ -466,6 +393,7 @@ async def delete_post_handler(message: Message, db):
     except Exception as e:
         logfire.error(f"Ошибка при удалении поста: {e}")
         await message.answer("❌ Ошибка при удалении поста")
+
 
 @router.message(PostStates.waiting_for_image)
 async def process_post_image(message: Message, state: FSMContext, db):
@@ -491,9 +419,11 @@ async def process_post_image(message: Message, state: FSMContext, db):
     await state.update_data(image_id=file_id)
     await continue_post_creation(message, state, db)
 
+
 @router.callback_query(PostStates.waiting_for_image, F.data == "skip_image")
 async def skip_image_callback(callback: CallbackQuery, state: FSMContext, db):
     await continue_post_creation(callback, state, db)
+
 
 async def continue_post_creation(
     callback_or_message: Union[Message, CallbackQuery], state: FSMContext, db
@@ -524,30 +454,29 @@ async def continue_post_creation(
         return
 
     # Создаем один пост с несколькими категориями
-    parsed_event_at = None
-    if event_at_iso:
-        try:
-            from zoneinfo import ZoneInfo
-            parsed_event_at = datetime.fromisoformat(event_at_iso)
-            if parsed_event_at.tzinfo is not None:
-                parsed_event_at = parsed_event_at.astimezone(timezone.utc).replace(tzinfo=None)
-        except Exception:
-            pass
-
-    post = await PostRepository.create_post(
-        db, title, content, user_id, category_ids, post_city, image_id, parsed_event_at, url, address
+    post = await PostService.create_post_and_send_to_moderation(
+        db=db,
+        title=title,
+        content=content,
+        author_id=user_id,
+        category_ids=category_ids,
+        city=post_city,
+        image_id=image_id,
+        event_at=event_at_iso,
+        url=url,
+        address=address,  # ✅ Передаём адрес
+        bot=message.bot,
     )
 
-    if post and message.bot:
-        await send_post_to_moderation_with_check(message.bot, post, db)
+    if post:
         await message.answer(
             f"Мероприятие отправлено в Сердце и будет автоматически опубликовано после модерации 👏🥳",
             reply_markup=get_main_keyboard(),
         )
+        await state.clear()
     else:
         await message.answer(
             "✖️ Ошибка при создании поста. Попробуйте еще раз.",
             reply_markup=get_main_keyboard(),
         )
-
-    await state.clear()
+        await state.clear()
