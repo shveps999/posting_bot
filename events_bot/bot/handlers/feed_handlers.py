@@ -40,10 +40,21 @@ async def cmd_feed(message: Message, db):
     """Обработчик команды /feed"""
     logfire.info(f"Пользователь {message.from_user.id} открывает ленту через команду")
     
-    # Отправляем гифку
+    # Удаляем старое сообщение, если это не команда (например, меню)
+    try:
+        await message.delete()
+    except Exception:
+        pass
+
     if FEED_GIF_ID:
         try:
-            await message.answer_animation(animation=FEED_GIF_ID)
+            sent = await message.answer_animation(
+                animation=FEED_GIF_ID,
+                caption="✨ Загружаю подборку...",
+                parse_mode="HTML"
+            )
+            await show_feed_page_from_animation(sent, 0, db)
+            return
         except Exception as e:
             print(f"Ошибка отправки гифки ленты: {e}")
     
@@ -55,14 +66,52 @@ async def show_feed_callback(callback: CallbackQuery, db):
     """Показать ленту постов"""
     logfire.info(f"Пользователь {callback.from_user.id} открывает ленту")
     
-    # Отправляем гифку
+    # Удаляем старое сообщение (например, меню)
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+
     if FEED_GIF_ID:
         try:
-            await callback.message.answer_animation(animation=FEED_GIF_ID)
+            sent = await callback.message.answer_animation(
+                animation=FEED_GIF_ID,
+                caption="✨ Загружаю подборку...",
+                parse_mode="HTML"
+            )
+            await show_feed_page_from_animation(sent, 0, db)
+            await callback.answer()
+            return
         except Exception as e:
             print(f"Ошибка отправки гифки ленты: {e}")
     
     await show_feed_page(callback, 0, db)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "liked_posts")
+async def show_liked(callback: CallbackQuery, db):
+    """Показать избранное с гифкой"""
+    # Удаляем старое сообщение
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+
+    if LIKED_GIF_ID:
+        try:
+            sent = await callback.message.answer_animation(
+                animation=LIKED_GIF_ID,
+                caption="❤️ Загружаю избранное...",
+                parse_mode="HTML"
+            )
+            await show_liked_page_from_animation(sent, 0, db)
+            await callback.answer()
+            return
+        except Exception as e:
+            print(f"Ошибка отправки гифки избранного: {e}")
+    
+    await show_liked_page(callback, 0, db)
     await callback.answer()
 
 
@@ -79,7 +128,7 @@ async def handle_feed_navigation(callback: CallbackQuery, db):
             new_page = (
                 max(0, current_page - 1) if action == "prev" else current_page + 1
             )
-            await show_feed_page(callback, new_page, db)
+            await show_feed_page_from_animation(callback.message, new_page, db)
         elif action == "open":
             post_id = int(data[2])
             current_page = int(data[3])
@@ -87,7 +136,7 @@ async def handle_feed_navigation(callback: CallbackQuery, db):
             await show_post_details(callback, post_id, current_page, total_pages, db)
         elif action == "back":
             current_page = int(data[2])
-            await show_feed_page(callback, current_page, db)
+            await show_feed_page_from_animation(callback.message, current_page, db)
         elif action == "heart":
             post_id = int(data[2])
             current_page = int(data[3])
@@ -114,6 +163,8 @@ async def return_to_main_menu(callback: CallbackQuery):
             raise
     await callback.answer()
 
+
+# --- Показ ленты и избранного: редактируем подпись гифки ---
 
 async def show_feed_page_cmd(message: Message, page: int, db):
     """Показать страницу ленты через сообщение"""
@@ -185,6 +236,86 @@ async def show_feed_page(callback: CallbackQuery, page: int, db):
             preview_text,
             reply_markup=get_feed_list_keyboard(posts, page, total_pages, start_index=start_index),
             parse_mode="HTML",
+        )
+    except Exception as e:
+        if "message is not modified" in str(e):
+            pass
+        else:
+            raise
+
+
+async def show_feed_page_from_animation(message: Message, page: int, db):
+    """Показать ленту, редактируя подпись гифки"""
+    posts = await PostService.get_feed_posts(
+        db, message.from_user.id, POSTS_PER_PAGE, page * POSTS_PER_PAGE
+    )
+    if not posts:
+        try:
+            await message.edit_caption(
+                caption="В подборке пока нет мероприятий по вашим категориям.\n\n"
+                        "Что можно сделать:\n"
+                        "• Выбрать другие категории\n"
+                        "• Создать своё мероприятие\n"
+                        "• Дождаться появления в подборке новых мероприятий",
+                reply_markup=get_main_keyboard(),
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            if "message is not modified" in str(e):
+                pass
+            else:
+                raise
+        return
+    total_posts = await PostService.get_feed_posts_count(db, message.from_user.id)
+    total_pages = (total_posts + POSTS_PER_PAGE - 1) // POSTS_PER_PAGE
+    for post in posts:
+        await db.refresh(post, attribute_names=["categories"])
+    preview_text = format_feed_list(posts, page * POSTS_PER_PAGE + 1, total_posts)
+    start_index = page * POSTS_PER_PAGE + 1
+    try:
+        await message.edit_caption(
+            caption=preview_text,
+            reply_markup=get_feed_list_keyboard(posts, page, total_pages, start_index=start_index),
+            parse_mode="HTML",
+        )
+    except Exception as e:
+        if "message is not modified" in str(e):
+            pass
+        else:
+            raise
+
+
+async def show_liked_page_from_animation(message: Message, page: int, db):
+    """Показать избранное, редактируя подпись гифки"""
+    posts = await PostService.get_liked_posts(
+        db, message.from_user.id, POSTS_PER_PAGE, page * POSTS_PER_PAGE
+    )
+    if not posts:
+        try:
+            await message.edit_caption(
+                caption="У вас пока нет избранных мероприятий\n\n"
+                        "Чтобы добавить:\n"
+                        "• Выберите событие в подборке\n"
+                        "• Перейдите в подробнее события\n"
+                        "• Нажмите «В избранное» под постом",
+                reply_markup=get_main_keyboard(),
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            if "message is not modified" in str(e):
+                pass
+            else:
+                raise
+        return
+    total_posts = await PostService.get_liked_posts_count(db, message.from_user.id)
+    total_pages = (total_posts + POSTS_PER_PAGE - 1) // POSTS_PER_PAGE
+    start_index = page * POSTS_PER_PAGE + 1
+    text = format_liked_list(posts, start_index, total_posts)
+    try:
+        await message.edit_caption(
+            caption=text,
+            reply_markup=get_liked_list_keyboard(posts, page, total_pages, start_index=start_index),
+            parse_mode="HTML"
         )
     except Exception as e:
         if "message is not modified" in str(e):
@@ -384,18 +515,6 @@ async def show_post_details(
             raise
 
 
-@router.callback_query(F.data == "liked_posts")
-async def show_liked(callback: CallbackQuery, db):
-    """Показать избранное с гифкой"""
-    if LIKED_GIF_ID:
-        try:
-            await callback.message.answer_animation(animation=LIKED_GIF_ID)
-        except Exception as e:
-            print(f"Ошибка отправки гифки избранного: {e}")
-    await show_liked_page(callback, 0, db)
-    await callback.answer()
-
-
 @router.callback_query(F.data.startswith("liked_"))
 async def handle_liked_navigation(callback: CallbackQuery, db):
     data = callback.data.split("_")
@@ -407,7 +526,7 @@ async def handle_liked_navigation(callback: CallbackQuery, db):
             new_page = (
                 max(0, current_page - 1) if action == "prev" else current_page + 1
             )
-            await show_liked_page(callback, new_page, db)
+            await show_liked_page_from_animation(callback.message, new_page, db)
         elif action == "open":
             post_id = int(data[2])
             current_page = int(data[3])
@@ -417,7 +536,7 @@ async def handle_liked_navigation(callback: CallbackQuery, db):
             )
         elif action == "back":
             current_page = int(data[2])
-            await show_liked_page(callback, current_page, db)
+            await show_liked_page_from_animation(callback.message, current_page, db)
         elif action == "heart":
             post_id = int(data[2])
             current_page = int(data[3])
