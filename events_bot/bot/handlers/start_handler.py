@@ -17,8 +17,10 @@ MAIN_MENU_GIF_IDS = [
     os.getenv("MAIN_MENU_GIF_ID_4"),
     os.getenv("MAIN_MENU_GIF_ID_5"),
     os.getenv("MAIN_MENU_GIF_ID_6"),
-    os.getenv("MAIN_MENU_GIF_ID_7"),
 ]
+
+# Гифка при старте
+START_GIF_ID = os.getenv("START_GIF_ID")
 
 # Очистка: убираем None (если какая-то переменная не задана)
 MAIN_MENU_GIF_IDS = [gif_id for gif_id in MAIN_MENU_GIF_IDS if gif_id]
@@ -48,8 +50,20 @@ async def cmd_start(message: Message, state: FSMContext, db):
             "Для начала выберите ваш город:",
             reply_markup=get_city_keyboard(),
         )
+        # Отправляем гифку после приветствия
+        if START_GIF_ID:
+            try:
+                await message.answer_animation(animation=START_GIF_ID)
+            except Exception as e:
+                print(f"Ошибка отправки гифки /start: {e}")
         await state.set_state(UserStates.waiting_for_city)
     else:
+        # Отправляем гифку при повторном входе
+        if START_GIF_ID:
+            try:
+                await message.answer_animation(animation=START_GIF_ID)
+            except Exception as e:
+                print(f"Ошибка отправки гифки /start: {e}")
         await show_main_menu(message)
 
 
