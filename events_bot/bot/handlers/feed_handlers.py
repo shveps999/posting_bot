@@ -39,14 +39,21 @@ def register_feed_handlers(dp: Router):
 async def cmd_feed(message: Message, db):
     """Обработчик команды /feed"""
     logfire.info(f"Пользователь {message.from_user.id} открывает ленту через команду")
-    
+
+    # Удаляем предыдущее системное сообщение, если оно есть (гифка + список)
+    # Но НЕ удаляем, если это команда, отправленная в чат
+    # Вместо удаления — просто отправим поверх
+
     # Отправляем гифку
     if FEED_GIF_ID:
         try:
-            await message.answer_animation(animation=FEED_GIF_ID)
+            sent_gif = await message.answer_animation(animation=FEED_GIF_ID)
+            await show_feed_page_from_message(sent_gif, 0, db)
+            return
         except Exception as e:
             print(f"Ошибка отправки гифки ленты: {e}")
-    
+
+    # Если гифка не отправилась — просто показываем список
     await show_feed_page_cmd(message, 0, db)
 
 
@@ -54,15 +61,53 @@ async def cmd_feed(message: Message, db):
 async def show_feed_callback(callback: CallbackQuery, db):
     """Показать ленту постов"""
     logfire.info(f"Пользователь {callback.from_user.id} открывает ленту")
-    
+
+    # Удаляем старое сообщение (например, главное меню или избранное)
+    try:
+        await callback.message.delete()
+    except Exception as e:
+        if "message to delete not found" not in str(e):
+            print(f"Ошибка удаления сообщения: {e}")
+
     # Отправляем гифку
     if FEED_GIF_ID:
         try:
-            await callback.message.answer_animation(animation=FEED_GIF_ID)
+            sent = await callback.message.answer_animation(animation=FEED_GIF_ID)
+            await show_feed_page_from_message(sent, 0, db)
+            await callback.answer()
+            return
         except Exception as e:
             print(f"Ошибка отправки гифки ленты: {e}")
-    
+
+    # Если гифка не отправилась — просто показываем список
     await show_feed_page(callback, 0, db)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "liked_posts")
+async def show_liked(callback: CallbackQuery, db):
+    """Показать избранное с гифкой"""
+    
+    # Удаляем старое сообщение (например, меню или ленту)
+    try:
+        await callback.message.delete()
+    except Exception as e:
+        if "message to delete not found" not in str(e):
+            print(f"Ошибка удаления сообщения: {e}")
+
+    # Отправляем гифку
+    if LIKED_GIF_ID:
+        try:
+            sent = await callback.message.answer_animation(animation=LIKED_GIF_ID)
+            await show_liked_page_from_message(sent, 0, db)
+            await callback.answer()
+            return
+        except Exception as e:
+            print(f"Ошибка отправки гифки избранного: {e}")
+
+    # Если гифка не отправилась — просто показываем список
+    await show_liked_page(callback, 0, db)
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("feed_"))
@@ -113,6 +158,8 @@ async def return_to_main_menu(callback: CallbackQuery):
             raise
     await callback.answer()
 
+
+# --- Вспомогательные функции для показа ленты и избранного после гифки ---
 
 async def show_feed_page_cmd(message: Message, page: int, db):
     """Показать страницу ленты через сообщение"""
@@ -184,6 +231,88 @@ async def show_feed_page(callback: CallbackQuery, page: int, db):
             preview_text,
             reply_markup=get_feed_list_keyboard(posts, page, total_pages, start_index=start_index),
             parse_mode="HTML",
+        )
+    except Exception as e:
+        if "message is not modified" in str(e):
+            pass
+        else:
+            raise
+
+
+# --- Функции, которые редактируют сообщение с гифкой в список ---
+
+async def show_feed_page_from_message(message: Message, page: int, db):
+    """Показать ленту, редактируя сообщение с гифкой"""
+    posts = await PostService.get_feed_posts(
+        db, message.from_user.id, POSTS_PER_PAGE, page * POSTS_PER_PAGE
+    )
+    if not posts:
+        try:
+            await message.edit_text(
+                "В подборке пока нет мероприятий по вашим категориям.\n\n"
+                "Что можно сделать:\n"
+                "• Выбрать другие категории\n"
+                "• Создать своё мероприятие\n"
+                "• Дождаться появления в подборке новых мероприятий",
+                reply_markup=get_main_keyboard(),
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            if "message is not modified" in str(e):
+                pass
+            else:
+                raise
+        return
+    total_posts = await PostService.get_feed_posts_count(db, message.from_user.id)
+    total_pages = (total_posts + POSTS_PER_PAGE - 1) // POSTS_PER_PAGE
+    for post in posts:
+        await db.refresh(post, attribute_names=["categories"])
+    preview_text = format_feed_list(posts, page * POSTS_PER_PAGE + 1, total_posts)
+    start_index = page * POSTS_PER_PAGE + 1
+    try:
+        await message.edit_text(
+            preview_text,
+            reply_markup=get_feed_list_keyboard(posts, page, total_pages, start_index=start_index),
+            parse_mode="HTML",
+        )
+    except Exception as e:
+        if "message is not modified" in str(e):
+            pass
+        else:
+            raise
+
+
+async def show_liked_page_from_message(message: Message, page: int, db):
+    """Показать избранное, редактируя сообщение с гифкой"""
+    posts = await PostService.get_liked_posts(
+        db, message.from_user.id, POSTS_PER_PAGE, page * POSTS_PER_PAGE
+    )
+    if not posts:
+        try:
+            await message.edit_text(
+                "У вас пока нет избранных мероприятий\n\n"
+                "Чтобы добавить:\n"
+                "• Выберите событие в подборке\n"
+                "• Перейдите в подробнее события\n"
+                "• Нажмите «В избранное» под постом",
+                reply_markup=get_main_keyboard(),
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            if "message is not modified" in str(e):
+                pass
+            else:
+                raise
+        return
+    total_posts = await PostService.get_liked_posts_count(db, message.from_user.id)
+    total_pages = (total_posts + POSTS_PER_PAGE - 1) // POSTS_PER_PAGE
+    start_index = page * POSTS_PER_PAGE + 1
+    text = format_liked_list(posts, start_index, total_posts)
+    try:
+        await message.edit_text(
+            text,
+            reply_markup=get_liked_list_keyboard(posts, page, total_pages, start_index=start_index),
+            parse_mode="HTML"
         )
     except Exception as e:
         if "message is not modified" in str(e):
@@ -381,17 +510,6 @@ async def show_post_details(
             pass
         else:
             raise
-
-
-@router.callback_query(F.data == "liked_posts")
-async def show_liked(callback: CallbackQuery, db):
-    """Показать избранное с гифкой"""
-    if LIKED_GIF_ID:
-        try:
-            await callback.message.answer_animation(animation=LIKED_GIF_ID)
-        except Exception as e:
-            print(f"Ошибка отправки гифки избранного: {e}")
-    await show_liked_page(callback, 0, db)
 
 
 @router.callback_query(F.data.startswith("liked_"))
