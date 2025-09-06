@@ -14,6 +14,7 @@ from events_bot.storage import file_storage
 import logfire
 from datetime import timezone
 from events_bot.utils import get_clean_category_string
+import os
 
 try:
     from zoneinfo import ZoneInfo
@@ -21,6 +22,10 @@ except Exception:
     ZoneInfo = None
 
 router = Router()
+
+# Гифки
+FEED_GIF_ID = os.getenv("FEED_GIF_ID")
+LIKED_GIF_ID = os.getenv("LIKED_GIF_ID")
 
 POSTS_PER_PAGE = 5
 
@@ -34,6 +39,14 @@ def register_feed_handlers(dp: Router):
 async def cmd_feed(message: Message, db):
     """Обработчик команды /feed"""
     logfire.info(f"Пользователь {message.from_user.id} открывает ленту через команду")
+    
+    # Отправляем гифку
+    if FEED_GIF_ID:
+        try:
+            await message.answer_animation(animation=FEED_GIF_ID)
+        except Exception as e:
+            print(f"Ошибка отправки гифки ленты: {e}")
+    
     await show_feed_page_cmd(message, 0, db)
 
 
@@ -41,6 +54,14 @@ async def cmd_feed(message: Message, db):
 async def show_feed_callback(callback: CallbackQuery, db):
     """Показать ленту постов"""
     logfire.info(f"Пользователь {callback.from_user.id} открывает ленту")
+    
+    # Отправляем гифку
+    if FEED_GIF_ID:
+        try:
+            await callback.message.answer_animation(animation=FEED_GIF_ID)
+        except Exception as e:
+            print(f"Ошибка отправки гифки ленты: {e}")
+    
     await show_feed_page(callback, 0, db)
 
 
@@ -366,6 +387,12 @@ async def show_post_details(
 
 @router.callback_query(F.data == "liked_posts")
 async def show_liked(callback: CallbackQuery, db):
+    """Показать избранное с гифкой"""
+    if LIKED_GIF_ID:
+        try:
+            await callback.message.answer_animation(animation=LIKED_GIF_ID)
+        except Exception as e:
+            print(f"Ошибка отправки гифки избранного: {e}")
     await show_liked_page(callback, 0, db)
 
 
