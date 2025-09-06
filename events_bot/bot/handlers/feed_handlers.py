@@ -123,7 +123,6 @@ async def show_feed_page_cmd(message: Message, page: int, db):
     if not posts:
         logfire.info(f"Пользователь {message.from_user.id} — в ленте нет постов")
         await message.answer(
-            "📮 <b>Смотреть подборку</b>\n\n"
             "В подборке пока нет мероприятий по вашим категориям.\n\n"
             "Что можно сделать:\n"
             "• Выбрать другие категории\n"
@@ -159,7 +158,6 @@ async def show_feed_page(callback: CallbackQuery, page: int, db):
         try:
             await callback.message.delete()
             await callback.message.answer(
-                "📮 <b>Смотреть подборку</b>\n\n"
                 "В подборке пока нет мероприятий по вашим категориям.\n\n"
                 "Что можно сделать:\n"
                 "• Выбрать другие категории\n"
@@ -231,7 +229,7 @@ def format_post_for_feed(
 
 def format_feed_list(posts, current_position_start: int, total_posts: int) -> str:
     """Формат списка кратких карточек 4-5 постов (лента)"""
-    lines = ["Подборка актуальных мероприятий", ""]
+    lines = ["", ""]
     for idx, post in enumerate(posts, start=current_position_start):
         category_str = get_clean_category_string(post.categories)
         event_at = getattr(post, "event_at", None)
@@ -246,7 +244,7 @@ def format_feed_list(posts, current_position_start: int, total_posts: int) -> st
 
 def format_liked_list(posts, current_position_start: int, total_posts: int) -> str:
     """Формат списка кратких карточек 4-5 постов (избранное)"""
-    lines = ["Избранные мероприятия", ""]
+    lines = ["", ""]
     for idx, post in enumerate(posts, start=current_position_start):
         category_str = get_clean_category_string(post.categories)
         event_at = getattr(post, "event_at", None)
@@ -436,7 +434,6 @@ async def show_liked_page(callback: CallbackQuery, page: int, db):
         try:
             await callback.message.delete()
             await callback.message.answer(
-                "❤️ <b>Мое избранное</b>\n\n"
                 "У вас пока нет избранных мероприятий\n\n"
                 "Чтобы добавить:\n"
                 "• Выберите событие в подборке\n"
