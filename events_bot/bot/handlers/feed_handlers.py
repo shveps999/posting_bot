@@ -2,7 +2,7 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto, Message
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
-from events_bot.database.services import PostService, LikeService
+from events_bot.database.services import PostService, LikeService, UserService
 from events_bot.bot.keyboards.main_keyboard import get_main_keyboard
 from events_bot.bot.keyboards.feed_keyboard import (
     get_feed_list_keyboard,
