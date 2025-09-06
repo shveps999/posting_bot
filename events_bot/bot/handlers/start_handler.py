@@ -1,4 +1,4 @@
-rom aiogram import Router, F
+from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from events_bot.database.services import UserService
