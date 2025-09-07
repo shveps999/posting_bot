@@ -151,29 +151,32 @@ async def handle_feed_navigation(callback: CallbackQuery, db):
 async def return_to_main_menu(callback: CallbackQuery):
     """Возврат в главное меню — редактируем сообщение"""
     try:
+        # Пытаемся отредактировать текущее сообщение
         await callback.message.edit_text(
             "Выберите действие:",
             reply_markup=get_main_keyboard()
         )
     except TelegramBadRequest as e:
+        # Если нельзя отредактировать (например, это гифка без текста), удаляем и отправляем заново
         if "message is not modified" in str(e):
-            pass
+            pass  # Игнорируем
+        elif "message to edit not found" in str(e):
+            # Сообщение устарело — отправляем новое
+            await callback.message.answer(
+                "Выберите действие:",
+                reply_markup=get_main_keyboard()
+            )
+            await callback.message.delete()
         else:
-            # Удаляем текущее (например, гифку) и отправляем текст
-            try:
-                await callback.message.delete()
-            except Exception:
-                pass
+            # Другие ошибки (например, нельзя редактировать медиа)
+            await callback.message.delete()
             await callback.message.answer(
                 "Выберите действие:",
                 reply_markup=get_main_keyboard()
             )
     except Exception as e:
-        # Резервный вариант
-        try:
-            await callback.message.delete()
-        except Exception:
-            pass
+        # На всякий случай — резервный вариант
+        await callback.message.delete()
         await callback.message.answer(
             "Выберите действие:",
             reply_markup=get_main_keyboard()
