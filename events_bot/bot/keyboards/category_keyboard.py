@@ -1,21 +1,7 @@
-from aiogram.types import (
-    ReplyKeyboardMarkup,
-    KeyboardButton,
-    InlineKeyboardMarkup,
-    InlineKeyboardButton,
-)
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from typing import List
 from events_bot.database.models import Category
-from aiogram.utils.keyboard import InlineKeyboardBuilder
-
-
-def get_category_keyboard() -> ReplyKeyboardMarkup:
-    """Клавиатура для выбора категорий"""
-    keyboard = [
-        [KeyboardButton(text="☑️ Подтвердить выбор")],
-        [KeyboardButton(text="🔙 Назад")],
-    ]
-    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
 def get_category_selection_keyboard(
@@ -40,7 +26,7 @@ def get_category_selection_keyboard(
     # Располагаем по 2 в ряд
     builder.adjust(2)
 
-    # Кнопки "Отменить" и "Подтвердить" — каждая на своей строке
+    # Кнопки "Подтвердить" и "Отменить"
     if for_post:
         builder.row(
             InlineKeyboardButton(text="Подтвердить ✓", callback_data="confirm_post_categories")
