@@ -259,10 +259,7 @@ async def cmd_help(message: Message):
 
 
 @router.callback_query(F.data.startswith("city_"))
-async def process_city_selection_callback(
-    callback: CallbackQuery, state: FSMContext, db
-):
-    """Обработка выбора города через инлайн-кнопку"""
+async def process_city_selection_callback(callback: CallbackQuery, state: FSMContext, db):
     city = callback.data[5:]
     user = await UserService.register_user(
         db=db,
@@ -273,16 +270,21 @@ async def process_city_selection_callback(
     )
     user.city = city
     await db.commit()
+
     categories = await CategoryService.get_all_categories(db)
+
     try:
-        await callback.message.delete()
-        await callback.message.answer(
-            f"📍 Город {city} выбран!\n\nТеперь выберите категории интересов для кастомизации уведомлений и подборки:",
+        # ✅ Редактируем сообщение, а не отправляем новое
+        await callback.message.edit_text(
+            text=f"📍 Город {city} выбран!\n\nТеперь выберите категории интересов для получения уведомлений и подборки:",
             reply_markup=get_category_selection_keyboard(categories),
+            parse_mode="HTML"
         )
     except Exception as e:
-        if "message is not modified" not in str(e):
-            raise
+        logfire.error(f"Ошибка редактирования сообщения: {e}")
+        await callback.answer("❌ Ошибка при обновлении интерфейса", show_alert=True)
+        return
+
     await state.set_state(UserStates.waiting_for_categories)
     await callback.answer()
 
