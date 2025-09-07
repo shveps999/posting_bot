@@ -41,12 +41,16 @@ async def cmd_start(message: Message, state: FSMContext, db):
     except Exception:
         pass
 
-    # 🧹 ГАРАНТИРОВАННО убираем любую Reply-клавиатуру
+    # 🧹 НАДЁЖНОЕ ОЧИЩЕНИЕ Reply-клавиатуры
     try:
-        await message.answer("Загрузка...", reply_markup=None)
-        await message.delete()
+        # Отправляем НЕВИДИМОЕ сообщение с пустой клавиатурой
+        reset_msg = await message.answer("•", reply_markup=None)
+        # Ждём 0.1 сек — чтобы Telegram точно обработал
+        await asyncio.sleep(0.1)
+        # Удаляем его (опционально)
+        await reset_msg.delete()
     except Exception as e:
-        logfire.warning(f"Не удалось очистить клавиатуру: {e}")
+        logfire.warning(f"Ошибка сброса клавиатуры: {e}")
 
     # Регистрируем пользователя
     user = await UserService.register_user(
@@ -70,7 +74,6 @@ async def cmd_start(message: Message, state: FSMContext, db):
                 caption="✨ Загружаем Сердце...",
                 parse_mode="HTML"
             )
-            # Сохраняем ID сообщения с гифкой
             await state.update_data(start_gif_message_id=sent.message_id)
             await show_city_selection(sent, db)
             return
