@@ -72,6 +72,22 @@ async def cmd_delete_user(message: Message, db):
         await message.answer("❌ Ошибка при удалении аккаунта. Попробуйте позже.")
 
 
+@router.message(F.text == "/liked_posts")
+async def cmd_liked_posts(message: Message, db):
+    """Обработчик команды /liked_posts — открытие избранного"""
+    logfire.info(f"Пользователь {message.from_user.id} открывает избранное через команду")
+    
+    # Удаляем команду
+    try:
+        await message.delete()
+    except Exception:
+        pass
+
+    # Переходим к обработчику избранного (из feed_handlers)
+    from events_bot.bot.handlers.feed_handlers import show_liked_callback
+    await show_liked_callback(message, db)
+
+
 def register_user_handlers(dp: Router):
     """Регистрация обработчиков пользователя"""
     dp.include_router(router)
