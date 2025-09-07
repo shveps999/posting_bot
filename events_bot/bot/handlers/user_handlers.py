@@ -5,6 +5,7 @@ from events_bot.database.services import UserService, CategoryService, PostServi
 from events_bot.bot.states import UserStates
 from events_bot.bot.keyboards import get_main_keyboard, get_category_selection_keyboard, get_city_keyboard
 from events_bot.utils import get_clean_category_string
+from events_bot.bot.keyboards.notification_keyboard import get_post_notification_keyboard
 
 router = Router()
 
@@ -25,7 +26,6 @@ async def handle_notify_heart(callback: CallbackQuery, db):
         post_url = getattr(post, "url", None)
 
         # Обновляем клавиатуру
-        from events_bot.bot.keyboards.notification_keyboard import get_post_notification_keyboard
         new_keyboard = get_post_notification_keyboard(
             post_id=post_id,
             is_liked=is_liked,
@@ -39,6 +39,36 @@ async def handle_notify_heart(callback: CallbackQuery, db):
 
     except Exception as e:
         await callback.answer("❌ Ошибка при изменении избранного", show_alert=True)
+
+
+@router.message(F.text == "/delete_user")
+async def cmd_delete_user(message: Message, db):
+    """Удаление пользователя и всех его данных"""
+    user_id = message.from_user.id
+    logfire.info(f"Пользователь {user_id} запросил удаление аккаунта")
+
+    # Проверяем, существует ли пользователь
+    user = await UserService.register_user(
+        db=db,
+        telegram_id=user_id,
+        username=message.from_user.username,
+        first_name=message.from_user.first_name,
+        last_name=message.from_user.last_name,
+    )
+    if not user:
+        await message.answer("❌ Ваш аккаунт уже удалён или не существует.")
+        return
+
+    # Удаляем пользователя
+    success = await UserService.delete_user(db, user_id)
+    if success:
+        await message.answer(
+            "✅ Ваш аккаунт и все связанные данные (посты, лайки) успешно удалены.\n\n"
+            "Если захотите вернуться — просто начните сначала командой /start",
+            reply_markup=get_main_keyboard()
+        )
+    else:
+        await message.answer("❌ Ошибка при удалении аккаунта. Попробуйте позже.")
 
 
 def register_user_handlers(dp: Router):
