@@ -9,7 +9,6 @@ from .handlers import (
 from .keyboards import (
     get_main_keyboard,
     get_city_keyboard,
-    get_category_keyboard,
     get_category_selection_keyboard,
 )
 from .states import UserStates, PostStates
