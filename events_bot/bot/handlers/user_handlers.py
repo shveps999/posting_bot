@@ -140,7 +140,6 @@ async def show_liked_page_cmd(message: Message, page: int, db, user_id: int):
 
 @router.callback_query(UserStates.waiting_for_categories, F.data == "confirm_categories")
 async def confirm_categories(callback: CallbackQuery, state: FSMContext, db):
-    """Подтверждение выбора категорий"""
     data = await state.get_data()
     selected_ids = data.get("selected_categories", [])
 
@@ -148,42 +147,33 @@ async def confirm_categories(callback: CallbackQuery, state: FSMContext, db):
         await callback.answer("Выберите хотя бы одну категорию!", show_alert=True)
         return
 
-    # Сохраняем категории
     await UserService.select_categories(db, callback.from_user.id, selected_ids)
 
-    # Удаляем старое сообщение с выбором категорий
+    # Удаляем текущее сообщение
     try:
         await callback.message.delete()
     except Exception as e:
-        logfire.warning(f"Не удалось удалить сообщение с выбором категорий: {e}")
+        logfire.warning(f"Не удалось удалить сообщение: {e}")
 
-    # ✅ Шаг 1: Отправляем пустое сообщение с input_field_placeholder
+    # Удаляем 2 предыдущих (на случай, если есть "мусор")
     try:
-        await callback.message.answer("‌", reply_markup=None)  # Сбрасываем клавиатуру
-        await asyncio.sleep(0.1)
-        await callback.bot.delete_message(
-            chat_id=callback.message.chat.id,
-            message_id=callback.message.message_id + 1
+        for i in range(1, 3):
+            await callback.bot.delete_message(
+                chat_id=callback.message.chat.id,
+                message_id=callback.message.message_id - i
+            )
+    except Exception:
+        pass
+
+    # Отправляем ТЕКСТ, а не гифку
+    try:
+        await callback.message.answer(
+            "Выберите действие:",
+            reply_markup=get_main_keyboard(),
+            input_field_placeholder=""  # 🔥 Ключевой элемент
         )
     except Exception as e:
-        logfire.warning(f"Не удалось сбросить клавиатуру: {e}")
-
-    # ✅ Шаг 2: Отправляем гифку БЕЗ input_field_placeholder
-    try:
-        if MAIN_MENU_GIF_IDS:
-            selected_gif = random.choice(MAIN_MENU_GIF_IDS)
-            await callback.bot.send_animation(
-                chat_id=callback.message.chat.id,
-                animation=selected_gif,
-                reply_markup=get_main_keyboard()
-            )
-        else:
-            await callback.message.answer(
-                "Выберите действие:",
-                reply_markup=get_main_keyboard()
-            )
-    except Exception as e:
-        logfire.warning(f"Ошибка отправки главного меню: {e}")
+        logfire.warning(f"Ошибка отправки меню: {e}")
         await callback.message.answer(
             "Выберите действие:",
             reply_markup=get_main_keyboard()
