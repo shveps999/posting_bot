@@ -83,9 +83,9 @@ async def cmd_liked_posts(message: Message, db):
     except Exception:
         pass
 
-    # Переходим к обработчику избранного (из feed_handlers)
-    from events_bot.bot.handlers.feed_handlers import show_liked_callback
-    await show_liked_callback(message, db)
+    # Вызываем существующий обработчик из feed_handlers
+    from events_bot.bot.handlers.feed_handlers import show_liked
+    await show_liked(message, db)
 
 
 def register_user_handlers(dp: Router):
