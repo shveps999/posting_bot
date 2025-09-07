@@ -44,7 +44,7 @@ async def cmd_start(message: Message, state: FSMContext, db):
     # 🧹 НАДЁЖНОЕ ОЧИЩЕНИЕ Reply-клавиатуры
     try:
         # Отправляем НЕВИДИМОЕ сообщение с пустой клавиатурой
-        reset_msg = await message.answer("Загрузка", reply_markup=None)
+        reset_msg = await message.answer(" ", reply_markup=None)
         # Ждём 0.1 сек — чтобы Telegram точно обработал
         await asyncio.sleep(0.1)
         # Удаляем его (опционально)
