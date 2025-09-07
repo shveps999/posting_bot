@@ -147,25 +147,38 @@ async def confirm_categories(callback: CallbackQuery, state: FSMContext, db):
     # Сохраняем категории
     await UserService.select_categories(db, callback.from_user.id, selected_ids)
 
-    # Получаем start_gif_message_id из FSM
-    start_data = await state.get_data()
-    start_gif_msg_id = start_data.get("start_gif_message_id")
-
-    # Удаляем старое сообщение (с гифкой и выбором)
-    try:
-        if start_gif_msg_id:
-            await callback.bot.delete_message(chat_id=callback.message.chat.id, message_id=start_gif_msg_id)
-    except Exception as e:
-        logfire.warning(f"Не удалось удалить стартовую гифку: {e}")
-
-    # Удаляем сообщение с выбором категорий
+    # Удаляем старое сообщение с выбором категорий
     try:
         await callback.message.delete()
     except Exception as e:
         logfire.warning(f"Не удалось удалить сообщение с выбором категорий: {e}")
 
     # Показываем главное меню с рандомной гифкой
-    await show_main_menu(callback.message)
+    try:
+        # Используем callback.message.chat.id, чтобы отправить в чат
+        if MAIN_MENU_GIF_IDS:
+            selected_gif = random.choice(MAIN_MENU_GIF_IDS)
+            await callback.bot.send_animation(
+                chat_id=callback.message.chat.id,
+                animation=selected_gif,
+                reply_markup=get_main_keyboard(),
+                input_field_placeholder=""  # 🔥 Главное: обнуляет строку ввода
+            )
+        else:
+            # Резерв: текстовое меню
+            await callback.message.answer(
+                "Выберите действие:",
+                reply_markup=get_main_keyboard(),
+                input_field_placeholder=""
+            )
+    except Exception as e:
+        logfire.warning(f"Ошибка отправки главного меню: {e}")
+        await callback.message.answer(
+            "Выберите действие:",
+            reply_markup=get_main_keyboard(),
+            input_field_placeholder=""
+        )
+
     await state.clear()
     await callback.answer()
 
