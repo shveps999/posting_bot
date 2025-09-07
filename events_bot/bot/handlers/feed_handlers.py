@@ -255,15 +255,19 @@ async def show_feed_page_from_animation(message: Message, page: int, db, user_id
         logfire.warning(f"Не удалось удалить сообщение: {e}")
 
     try:
-        posts = await PostService.get_feed_posts(db, user_id, POSTS_PER_PAGE, page * POSTS_PER_PAGE)
-        if not posts:
-            sent = await message.answer_animation(
-                animation=FEED_GIF_ID,
-                caption="📭 В подборке пока нет мероприятий по вашим категориям.",
-                reply_markup=get_main_keyboard(),
-                parse_mode="HTML"
-            )
-            return
+    posts = await PostService.get_feed_posts(db, user_id, POSTS_PER_PAGE, page * POSTS_PER_PAGE)
+    if not posts:
+        sent = await message.answer_animation(
+            animation=FEED_GIF_ID,
+            caption="В подборке пока нет мероприятий по вашим категориям.\n\n"
+                    "Что можно сделать:\n"
+                    "• Выбрать другие категории\n"
+                    "• Создать своё мероприятие\n"
+                    "• Дождаться появления в подборке новых мероприятий",
+            reply_markup=get_main_keyboard(),
+            parse_mode="HTML"
+        )
+        return
 
         total_posts = await PostService.get_feed_posts_count(db, user_id)
         total_pages = (total_posts + POSTS_PER_PAGE - 1) // POSTS_PER_PAGE
