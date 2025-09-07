@@ -149,39 +149,23 @@ async def handle_feed_navigation(callback: CallbackQuery, db):
 
 @router.callback_query(F.data == "main_menu")
 async def return_to_main_menu(callback: CallbackQuery):
-    """Возврат в главное меню — редактируем сообщение"""
+    """Возврат в главное меню — удаляем текущее и отправляем новое"""
     try:
-        # Пытаемся отредактировать текущее сообщение
-        await callback.message.edit_text(
-            "Выберите действие:",
-            reply_markup=get_main_keyboard()
-        )
-    except TelegramBadRequest as e:
-        # Если нельзя отредактировать (например, это гифка без текста), удаляем и отправляем заново
-        if "message is not modified" in str(e):
-            pass  # Игнорируем
-        elif "message to edit not found" in str(e):
-            # Сообщение устарело — отправляем новое
-            await callback.message.answer(
-                "Выберите действие:",
-                reply_markup=get_main_keyboard()
-            )
-            await callback.message.delete()
-        else:
-            # Другие ошибки (например, нельзя редактировать медиа)
-            await callback.message.delete()
-            await callback.message.answer(
-                "Выберите действие:",
-                reply_markup=get_main_keyboard()
-            )
-    except Exception as e:
-        # На всякий случай — резервный вариант
+        # Удаляем сообщение с гифкой или постом
         await callback.message.delete()
+    except Exception as e:
+        logfire.warning(f"Не удалось удалить сообщение при возврате в меню: {e}")
+
+    try:
+        # Отправляем главное меню как новое сообщение
         await callback.message.answer(
             "Выберите действие:",
             reply_markup=get_main_keyboard()
         )
-    await callback.answer()
+        await callback.answer()
+    except Exception as e:
+        logfire.error(f"Ошибка при отправке главного меню: {e}")
+        await callback.answer("❌ Ошибка при открытии меню", show_alert=True)
 
 
 # --- Показ ленты и избранного: удаляем и отправляем заново с гифкой ---
