@@ -8,12 +8,16 @@ from events_bot.utils import get_clean_category_string
 from events_bot.bot.keyboards.notification_keyboard import get_post_notification_keyboard
 from events_bot.bot.handlers.feed_handlers import show_liked_page_from_animation, format_liked_list
 from events_bot.bot.keyboards.feed_keyboard import get_liked_list_keyboard
-from events_bot.bot.handlers.start_handler import show_main_menu  # ✅ Импорт
+from events_bot.bot.handlers.start_handler import show_main_menu, MAIN_MENU_GIF_IDS  # ✅ Импортируем гифки
 import logfire
 import os
+import random  # ✅ Импортируем random
 
 # Гифки
 LIKED_GIF_ID = os.getenv("LIKED_GIF_ID")
+
+# Количество постов на странице
+POSTS_PER_PAGE = 5  # Можно изменить
 
 router = Router()
 
@@ -155,17 +159,15 @@ async def confirm_categories(callback: CallbackQuery, state: FSMContext, db):
 
     # Показываем главное меню с рандомной гифкой
     try:
-        # Используем callback.message.chat.id, чтобы отправить в чат
         if MAIN_MENU_GIF_IDS:
             selected_gif = random.choice(MAIN_MENU_GIF_IDS)
             await callback.bot.send_animation(
                 chat_id=callback.message.chat.id,
                 animation=selected_gif,
                 reply_markup=get_main_keyboard(),
-                input_field_placeholder=""  # 🔥 Главное: обнуляет строку ввода
+                input_field_placeholder=""  # 🔥 Обнуляем строку ввода
             )
         else:
-            # Резерв: текстовое меню
             await callback.message.answer(
                 "Выберите действие:",
                 reply_markup=get_main_keyboard(),
@@ -287,7 +289,6 @@ async def process_city_selection_callback(callback: CallbackQuery, state: FSMCon
     categories = await CategoryService.get_all_categories(db)
 
     try:
-        # ✅ Редактируем сообщение, а не отправляем новое
         await callback.message.edit_text(
             text=f"📍 Город {city} выбран!\n\nТеперь выберите категории интересов для получения уведомлений и подборки:",
             reply_markup=get_category_selection_keyboard(categories),
