@@ -157,28 +157,36 @@ async def confirm_categories(callback: CallbackQuery, state: FSMContext, db):
     except Exception as e:
         logfire.warning(f"Не удалось удалить сообщение с выбором категорий: {e}")
 
-    # Показываем главное меню с рандомной гифкой
+    # ✅ Шаг 1: Отправляем пустое сообщение с input_field_placeholder
+    try:
+        await callback.message.answer("‌", reply_markup=None)  # Сбрасываем клавиатуру
+        await asyncio.sleep(0.1)
+        await callback.bot.delete_message(
+            chat_id=callback.message.chat.id,
+            message_id=callback.message.message_id + 1
+        )
+    except Exception as e:
+        logfire.warning(f"Не удалось сбросить клавиатуру: {e}")
+
+    # ✅ Шаг 2: Отправляем гифку БЕЗ input_field_placeholder
     try:
         if MAIN_MENU_GIF_IDS:
             selected_gif = random.choice(MAIN_MENU_GIF_IDS)
             await callback.bot.send_animation(
                 chat_id=callback.message.chat.id,
                 animation=selected_gif,
-                reply_markup=get_main_keyboard(),
-                input_field_placeholder=""  # 🔥 Обнуляем строку ввода
+                reply_markup=get_main_keyboard()
             )
         else:
             await callback.message.answer(
                 "Выберите действие:",
-                reply_markup=get_main_keyboard(),
-                input_field_placeholder=""
+                reply_markup=get_main_keyboard()
             )
     except Exception as e:
         logfire.warning(f"Ошибка отправки главного меню: {e}")
         await callback.message.answer(
             "Выберите действие:",
-            reply_markup=get_main_keyboard(),
-            input_field_placeholder=""
+            reply_markup=get_main_keyboard()
         )
 
     await state.clear()
