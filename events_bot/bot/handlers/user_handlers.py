@@ -6,6 +6,7 @@ from events_bot.bot.states import UserStates
 from events_bot.bot.keyboards import get_main_keyboard, get_category_selection_keyboard, get_city_keyboard
 from events_bot.utils import get_clean_category_string
 from events_bot.bot.keyboards.notification_keyboard import get_post_notification_keyboard
+import logfire
 
 router = Router()
 
