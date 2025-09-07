@@ -8,6 +8,7 @@ from events_bot.utils import get_clean_category_string
 from events_bot.bot.keyboards.notification_keyboard import get_post_notification_keyboard
 from events_bot.bot.handlers.feed_handlers import show_liked_page_from_animation, format_liked_list
 from events_bot.bot.keyboards.feed_keyboard import get_liked_list_keyboard
+from events_bot.bot.handlers.start_handler import show_main_menu  # ✅ Импорт
 import logfire
 import os
 
@@ -131,6 +132,36 @@ async def show_liked_page_cmd(message: Message, page: int, db, user_id: int):
         reply_markup=get_liked_list_keyboard(posts, page, total_pages, start_index=start_index),
         parse_mode="HTML"
     )
+
+
+@router.callback_query(UserStates.waiting_for_categories, F.data == "confirm_categories")
+async def confirm_categories(callback: CallbackQuery, state: FSMContext, db):
+    """Подтверждение выбора категорий"""
+    data = await state.get_data()
+    selected_ids = data.get("selected_categories", [])
+
+    if not selected_ids:
+        await callback.answer("Выберите хотя бы одну категорию!", show_alert=True)
+        return
+
+    # Сохраняем категории
+    await UserService.select_categories(db, callback.from_user.id, selected_ids)
+
+    # Получаем start_gif_message_id из FSM
+    start_data = await state.get_data()
+    start_gif_msg_id = start_data.get("start_gif_message_id")
+
+    # Удаляем старое сообщение (с гифкой и выбором)
+    try:
+        if start_gif_msg_id:
+            await callback.bot.delete_message(chat_id=callback.message.chat.id, message_id=start_gif_msg_id)
+    except Exception as e:
+        logfire.warning(f"Не удалось удалить стартовую гифку: {e}")
+
+    # Показываем главное меню с рандомной гифкой
+    await show_main_menu(callback.message)
+    await state.clear()
+    await callback.answer()
 
 
 def register_user_handlers(dp: Router):
