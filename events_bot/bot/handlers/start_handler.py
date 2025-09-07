@@ -34,21 +34,22 @@ def register_start_handlers(dp: Router):
 
 @router.message(F.text == "/start")
 async def cmd_start(message: Message, state: FSMContext, db):
-    """Обработчик команды /start"""
+    """Обработчик команды /start — однократный"""
+    # Проверяем, не в процессе ли уже настройка
+    current_state = await state.get_state()
+    if current_state is not None:
+        return  # Игнорируем повторный /start
+
     # Удаляем команду
     try:
         await message.delete()
     except Exception:
         pass
 
-    # 🧹 НАДЁЖНОЕ ОЧИЩЕНИЕ Reply-клавиатуры
+    # 🧹 Сброс Reply-клавиатуры через невидимое сообщение
     try:
-        # Отправляем НЕВИДИМОЕ сообщение с пустой клавиатурой
-        reset_msg = await message.answer("📩", reply_markup=None)
-        # Ждём 0.1 сек — чтобы Telegram точно обработал
-        await asyncio.sleep(0.6)
-        # Удаляем его (опционально)
-        await reset_msg.delete()
+        await message.answer("‌", reply_markup=None)  # Zero-width space, не удаляем
+        await asyncio.sleep(0.1)  # Малая задержка — чтобы Telegram обработал
     except Exception as e:
         logfire.warning(f"Ошибка сброса клавиатуры: {e}")
 
