@@ -53,12 +53,41 @@ async def start_create_post(callback: CallbackQuery, state: FSMContext, db):
     # Устанавливаем начальное состояние создания поста
     await state.set_state(PostStates.creating_post)
 
-    # Сначала предлагаем выбрать города
-    await callback.message.edit_text(
-        "Выберите город для публикации мероприятия:", reply_markup=get_city_keyboard(for_post=True)
-    )
-    await state.set_state(PostStates.waiting_for_city_selection)
-    await callback.answer()
+    # Пытаемся отредактировать как caption (если это гифка)
+    try:
+        await callback.message.edit_caption(
+            caption="📍 Выберите город для поста:",
+            reply_markup=get_city_keyboard(for_post=True),
+        )
+        await state.set_state(PostStates.waiting_for_city_selection)
+        await callback.answer()
+        return
+    except Exception as e:
+        if "message is not modified" in str(e):
+            await callback.answer()
+            return
+        # Если edit_caption не сработал — пробуем edit_text
+        try:
+            await callback.message.edit_text(
+                "📍 Выберите город для поста:",
+                reply_markup=get_city_keyboard(for_post=True),
+            )
+            await state.set_state(PostStates.waiting_for_city_selection)
+            await callback.answer()
+            return
+        except Exception:
+            # Если и это не сработало — удаляем и отправляем новое
+            try:
+                await callback.message.delete()
+            except Exception:
+                pass
+            await callback.message.answer(
+                "📍 Выберите город для поста:",
+                reply_markup=get_city_keyboard(for_post=True),
+            )
+            await state.set_state(PostStates.waiting_for_city_selection)
+            await callback.answer()
+            return
 
 
 @router.callback_query(F.data == "cancel_post")
@@ -109,8 +138,7 @@ async def select_all_cities(callback: CallbackQuery, state: FSMContext, db):
 
 
 @router.callback_query(
-    PostStates.waiting_for_city_selection, F.data == "post_city_confirm"
-)
+    PostStates.waiting_for_city_selection, F.data == "post_city_confirm")
 async def confirm_city_selection(callback: CallbackQuery, state: FSMContext, db):
     """Подтверждение выбора городов для поста"""
     logfire.info(f"Получен callback post_city_confirm от пользователя {callback.from_user.id}")
