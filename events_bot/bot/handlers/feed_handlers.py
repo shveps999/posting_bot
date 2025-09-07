@@ -1,4 +1,3 @@
-# events_bot/bot/handlers/feed_handlers.py
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto, Message
 from aiogram.fsm.context import FSMContext
@@ -150,25 +149,19 @@ async def handle_feed_navigation(callback: CallbackQuery, db):
 
 @router.callback_query(F.data == "main_menu")
 async def return_to_main_menu(callback: CallbackQuery):
-    """Возврат в главное меню — редактируем подпись гифки"""
+    """Возврат в главное меню"""
     try:
-        await callback.message.edit_caption(
-            caption="Выберите действие:",
-            reply_markup=get_main_keyboard(),
-            parse_mode="HTML"
-        )
-        await callback.answer()
-    except Exception as e:
-        # Если не получилось (например, это не animation), удаляем и отправляем
-        try:
-            await callback.message.delete()
-        except Exception:
-            pass
+        await callback.message.delete()
         await callback.message.answer(
             "Выберите действие:",
             reply_markup=get_main_keyboard()
         )
-        await callback.answer()
+    except Exception as e:
+        if "message is not modified" in str(e):
+            pass
+        else:
+            raise
+    await callback.answer()
 
 
 # --- Показ ленты и избранного: удаляем и отправляем заново с гифкой ---
@@ -182,11 +175,11 @@ async def show_feed_page_cmd(message: Message, page: int, db):
     if not posts:
         logfire.info(f"Пользователь {message.from_user.id} — в ленте нет постов")
         await message.answer(
-            "В подборке пока нет мероприятий по вашим категориям.\n\n"
+            "В актуальном пока нет мероприятий по вашим категориям.\n\n"
             "Что можно сделать:\n"
             "• Выбрать другие категории\n"
             "• Создать своё мероприятие\n"
-            "• Дождаться появления в актуальных новых мероприятий",
+            "• Дождаться появления в актуальном новых мероприятий",
             reply_markup=get_main_keyboard(),
             parse_mode="HTML"
         )
@@ -217,11 +210,11 @@ async def show_feed_page(callback: CallbackQuery, page: int, db):
         try:
             await callback.message.delete()
             await callback.message.answer(
-                "В подборке пока нет мероприятий по вашим категориям.\n\n"
+                "В актуальном пока нет мероприятий по вашим категориям.\n\n"
                 "Что можно сделать:\n"
                 "• Выбрать другие категории\n"
                 "• Создать своё мероприятие\n"
-                "• Дождаться появления в актуальных новых мероприятий",
+                "• Дождаться появления в актуальном новых мероприятий",
                 reply_markup=get_main_keyboard(),
                 parse_mode="HTML"
             )
@@ -266,11 +259,11 @@ async def show_feed_page_from_animation(message: Message, page: int, db, user_id
         if not posts:
             sent = await message.answer_animation(
                 animation=FEED_GIF_ID,
-                caption="В подборке пока нет мероприятий по вашим категориям.\n\n"
+                caption="В актуальном пока нет мероприятий по вашим категориям.\n\n"
                         "Что можно сделать:\n"
                         "• Выбрать другие категории\n"
                         "• Создать своё мероприятие\n"
-                        "• Дождаться появления в актуальных новых мероприятий",
+                        "• Дождаться появления в актуальном новых мероприятий",
                 reply_markup=get_main_keyboard(),
                 parse_mode="HTML"
             )
