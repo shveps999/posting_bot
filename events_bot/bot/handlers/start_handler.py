@@ -48,7 +48,7 @@ async def cmd_start(message: Message, state: FSMContext, db):
 
     # 🧹 Сброс Reply-клавиатуры через невидимое сообщение
     try:
-        await message.answer("‌", reply_markup=None)  # Zero-width space, не удаляем
+        await message.answer("📩‌", reply_markup=None)  # Zero-width space, не удаляем
         await asyncio.sleep(0.1)  # Малая задержка — чтобы Telegram обработал
     except Exception as e:
         logfire.warning(f"Ошибка сброса клавиатуры: {e}")
