@@ -106,29 +106,23 @@ async def show_city_selection(message: Message, db):
 
 
 async def show_main_menu(message: Message):
-    """Отправить главное меню с одной из гифок (случайно)"""
-    user = message.from_user
-    welcome_text = f"👋 Привет, {user.first_name or user.username or 'друг'}!\n\n"
-    welcome_text += "Выберите действие:"
-
+    """Отправить главное меню — только гифка без текста"""
     if MAIN_MENU_GIF_IDS:
         selected_gif = random.choice(MAIN_MENU_GIF_IDS)
         try:
             await message.answer_animation(
                 animation=selected_gif,
-                caption=welcome_text,
-                reply_markup=get_main_keyboard(),
-                parse_mode="HTML"
+                # Никакого caption — только гифка
+                reply_markup=get_main_keyboard()
             )
             return
         except Exception as e:
             logfire.warning(f"Ошибка отправки гифки главного меню: {e}")
 
-    # Резерв: текстовое меню
+    # Резерв: если гифок нет — текстовое меню
     await message.answer(
-        welcome_text,
-        reply_markup=get_main_keyboard(),
-        parse_mode="HTML"
+        "Выберите действие:",
+        reply_markup=get_main_keyboard()
     )
 
 
