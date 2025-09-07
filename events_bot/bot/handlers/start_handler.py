@@ -34,24 +34,11 @@ def register_start_handlers(dp: Router):
 
 @router.message(F.text == "/start")
 async def cmd_start(message: Message, state: FSMContext, db):
-    """Обработчик команды /start — однократный"""
-    # Проверяем, не в процессе ли уже настройка
-    current_state = await state.get_state()
-    if current_state is not None:
-        return  # Игнорируем повторный /start
-
     # Удаляем команду
     try:
         await message.delete()
     except Exception:
         pass
-
-    # 🧹 Сброс Reply-клавиатуры через невидимое сообщение
-    try:
-        await message.answer("📩‌", reply_markup=None)  # Zero-width space, не удаляем
-        await asyncio.sleep(0.1)  # Малая задержка — чтобы Telegram обработал
-    except Exception as e:
-        logfire.warning(f"Ошибка сброса клавиатуры: {e}")
 
     # Регистрируем пользователя
     user = await UserService.register_user(
@@ -62,26 +49,12 @@ async def cmd_start(message: Message, state: FSMContext, db):
         last_name=message.from_user.last_name,
     )
 
-    # Если пользователь уже настроил профиль — показываем главное меню
+    # Если уже настроил профиль — главное меню
     if user.city and await UserService.get_user_categories(db, message.from_user.id):
         await show_main_menu(message)
         return
 
-    # Отправляем гифку START_GIF
-    if START_GIF_ID:
-        try:
-            sent = await message.answer_animation(
-                animation=START_GIF_ID,
-                caption="✨ Загружаем Сердце...",
-                parse_mode="HTML"
-            )
-            await state.update_data(start_gif_message_id=sent.message_id)
-            await show_city_selection(sent, db)
-            return
-        except Exception as e:
-            logfire.warning(f"Ошибка отправки START_GIF: {e}")
-
-    # Резерв: без гифки
+    # Показываем сразу полезное сообщение с выбором города
     await message.answer(
         "👋 Привет! Бот поможет быть в курсе актуальных и интересных мероприятий твоего вуза по выбранным категориям интересов.\n\n"
         "А еще здесь можно создать и разместить свое мероприятие. Начнем!\n\n"
