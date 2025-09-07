@@ -173,9 +173,9 @@ async def cmd_my_posts(message: Message, db):
     await message.answer(response, reply_markup=get_main_keyboard())
 
 
-@router.message(F.text == "/change_city")
+@router.message(F.text == "/change_university")
 async def cmd_change_city(message: Message, state: FSMContext):
-    """Обработчик команды /change_city"""
+    """Обработчик команды /change_university"""
     await message.answer("Выберите город для получения уведомлений и подборки:", reply_markup=get_city_keyboard())
     await state.set_state(UserStates.waiting_for_city)
 
