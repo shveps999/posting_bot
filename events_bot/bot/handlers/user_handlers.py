@@ -6,7 +6,13 @@ from events_bot.bot.states import UserStates
 from events_bot.bot.keyboards import get_main_keyboard, get_category_selection_keyboard, get_city_keyboard
 from events_bot.utils import get_clean_category_string
 from events_bot.bot.keyboards.notification_keyboard import get_post_notification_keyboard
+from events_bot.bot.handlers.feed_handlers import show_liked_page_from_animation, format_liked_list
+from events_bot.bot.keyboards.feed_keyboard import get_liked_list_keyboard
 import logfire
+import os
+
+# Гифки
+LIKED_GIF_ID = os.getenv("LIKED_GIF_ID")
 
 router = Router()
 
@@ -83,9 +89,48 @@ async def cmd_liked_posts(message: Message, db):
     except Exception:
         pass
 
-    # Вызываем существующий обработчик из feed_handlers
-    from events_bot.bot.handlers.feed_handlers import show_liked
-    await show_liked(message, db)
+    # Показываем гифку "загрузка"
+    if LIKED_GIF_ID:
+        try:
+            sent = await message.answer_animation(
+                animation=LIKED_GIF_ID,
+                caption="❤️ Загружаю избранное...",
+                parse_mode="HTML"
+            )
+            await show_liked_page_from_animation(sent, 0, db, user_id=message.from_user.id)
+            return
+        except Exception as e:
+            logfire.warning(f"Ошибка отправки гифки избранного: {e}")
+
+    # Резервный вариант — без гифки
+    await show_liked_page_cmd(message, 0, db, user_id=message.from_user.id)
+
+
+async def show_liked_page_cmd(message: Message, page: int, db, user_id: int):
+    """Показать страницу избранного (через Message)"""
+    posts = await PostService.get_liked_posts(db, user_id, POSTS_PER_PAGE, page * POSTS_PER_PAGE)
+    if not posts:
+        await message.answer(
+            "У вас пока нет избранных мероприятий\n\n"
+            "Чтобы добавить:\n"
+            "• Выберите событие в подборке\n"
+            "• Перейдите в подробнее события\n"
+            "• Нажмите «В избранное» под постом",
+            reply_markup=get_main_keyboard(),
+            parse_mode="HTML"
+        )
+        return
+
+    total_posts = await PostService.get_liked_posts_count(db, user_id)
+    total_pages = (total_posts + POSTS_PER_PAGE - 1) // POSTS_PER_PAGE
+    start_index = page * POSTS_PER_PAGE + 1
+    text = format_liked_list(posts, start_index, total_posts)
+
+    await message.answer(
+        text,
+        reply_markup=get_liked_list_keyboard(posts, page, total_pages, start_index=start_index),
+        parse_mode="HTML"
+    )
 
 
 def register_user_handlers(dp: Router):
