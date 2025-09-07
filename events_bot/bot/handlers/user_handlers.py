@@ -158,6 +158,12 @@ async def confirm_categories(callback: CallbackQuery, state: FSMContext, db):
     except Exception as e:
         logfire.warning(f"Не удалось удалить стартовую гифку: {e}")
 
+    # Удаляем сообщение с выбором категорий
+    try:
+        await callback.message.delete()
+    except Exception as e:
+        logfire.warning(f"Не удалось удалить сообщение с выбором категорий: {e}")
+
     # Показываем главное меню с рандомной гифкой
     await show_main_menu(callback.message)
     await state.clear()
