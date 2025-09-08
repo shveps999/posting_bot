@@ -294,7 +294,3 @@ async def show_main_menu_callback(callback: CallbackQuery):
         if "message is not modified" not in str(e):
             raise
     await callback.answer()
-
-        if "message is not modified" not in str(e):
-            raise
-    await callback.answer()
