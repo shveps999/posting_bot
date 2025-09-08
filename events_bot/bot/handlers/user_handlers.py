@@ -140,6 +140,7 @@ async def show_liked_page_cmd(message: Message, page: int, db, user_id: int):
 
 @router.callback_query(UserStates.waiting_for_categories, F.data == "confirm_categories")
 async def confirm_categories(callback: CallbackQuery, state: FSMContext, db):
+    """Подтверждение выбора категорий"""
     data = await state.get_data()
     selected_ids = data.get("selected_categories", [])
 
@@ -150,31 +151,30 @@ async def confirm_categories(callback: CallbackQuery, state: FSMContext, db):
     # Сохраняем категории
     await UserService.select_categories(db, callback.from_user.id, selected_ids)
 
+    # Удаляем старое сообщение с выбором категорий
     try:
-        # Удаляем текущее сообщение
         await callback.message.delete()
+    except Exception as e:
+        logfire.warning(f"Не удалось удалить сообщение с выбором категорий: {e}")
 
-        # ✅ Шаг 1: Отправляем гифку как photo
+    # Показываем главное меню с рандомной гифкой
+    try:
         if MAIN_MENU_GIF_IDS:
             selected_gif = random.choice(MAIN_MENU_GIF_IDS)
-            sent = await callback.bot.send_photo(
+            await callback.bot.send_animation(
                 chat_id=callback.message.chat.id,
-                photo=selected_gif,
-                caption="",  # Пустой caption
-                reply_markup=None  # Без клавиатуры
+                animation=selected_gif,
+                reply_markup=get_main_keyboard(),
+                input_field_placeholder=""  # 🔥 Обнуляем строку ввода
             )
-            # ✅ Шаг 2: Через 0.5 сек — редактируем с клавиатурой
-            await asyncio.sleep(0.5)
-            await sent.edit_reply_markup(reply_markup=get_main_keyboard())
         else:
-            # Резерв: текстовое меню
             await callback.message.answer(
                 "Выберите действие:",
                 reply_markup=get_main_keyboard(),
                 input_field_placeholder=""
             )
     except Exception as e:
-        logfire.warning(f"Ошибка отправки гифки: {e}")
+        logfire.warning(f"Ошибка отправки главного меню: {e}")
         await callback.message.answer(
             "Выберите действие:",
             reply_markup=get_main_keyboard(),
@@ -289,15 +289,14 @@ async def process_city_selection_callback(callback: CallbackQuery, state: FSMCon
     categories = await CategoryService.get_all_categories(db)
 
     try:
-        # ✅ РЕДАКТИРУЕМ, а не отправляем новое сообщение
         await callback.message.edit_text(
-            text=f"📍 Город {city} выбран!\n\nТеперь выберите категории интересов:",
+            text=f"📍 Город {city} выбран!\n\nТеперь выберите категории интересов для получения уведомлений и подборки:",
             reply_markup=get_category_selection_keyboard(categories),
             parse_mode="HTML"
         )
     except Exception as e:
-        logfire.error(f"Ошибка редактирования: {e}")
-        await callback.answer("❌ Ошибка", show_alert=True)
+        logfire.error(f"Ошибка редактирования сообщения: {e}")
+        await callback.answer("❌ Ошибка при обновлении интерфейса", show_alert=True)
         return
 
     await state.set_state(UserStates.waiting_for_categories)
@@ -306,13 +305,15 @@ async def process_city_selection_callback(callback: CallbackQuery, state: FSMCon
 
 @router.callback_query(F.data == "change_city")
 async def change_city_callback(callback: CallbackQuery, state: FSMContext):
+    """Изменение города через инлайн-кнопку"""
     try:
-        await callback.message.edit_text(
-            "Выберите город:",
-            reply_markup=get_city_keyboard()
+        await callback.message.delete()
+        await callback.message.answer(
+            "Выберите город для кастомизации уведомлений и подборки:", reply_markup=get_city_keyboard()
         )
     except Exception as e:
-        logfire.error(f"Ошибка: {e}")
+        if "message is not modified" not in str(e):
+            raise
     await state.set_state(UserStates.waiting_for_city)
     await callback.answer()
 
