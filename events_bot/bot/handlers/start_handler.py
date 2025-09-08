@@ -35,20 +35,17 @@ def register_start_handlers(dp: Router):
 @router.message(F.text == "/start")
 async def cmd_start(message: Message, state: FSMContext, db):
     """Обработчик команды /start"""
-    # Удаляем команду
     try:
         await message.delete()
     except Exception:
         pass
 
-    # 🧹 ГАРАНТИРОВАННО убираем любую Reply-клавиатуру
     try:
         await message.answer("👋 Добро пожаловать в Сердце!", reply_markup=None)
         await message.delete()
     except Exception as e:
         logfire.warning(f"Не удалось очистить клавиатуру: {e}")
 
-    # Регистрируем пользователя
     user = await UserService.register_user(
         db=db,
         telegram_id=message.from_user.id,
@@ -57,16 +54,13 @@ async def cmd_start(message: Message, state: FSMContext, db):
         last_name=message.from_user.last_name,
     )
 
-    # Получаем выбранные города и категории
     user_cities = await UserService.get_user_cities(db, user.id)
     user_categories = await UserService.get_user_categories(db, user.id)
 
-    # Если пользователь уже настроил профиль — показываем главное меню
     if user_cities and user_categories:
         await show_main_menu(message)
         return
 
-    # Отправляем гифку START_GIF
     if START_GIF_ID:
         try:
             sent = await message.answer_animation(
@@ -74,17 +68,15 @@ async def cmd_start(message: Message, state: FSMContext, db):
                 caption="✨ Загружаем Сердце...",
                 parse_mode="HTML"
             )
-            # Сохраняем ID сообщения с гифкой
             await state.update_data(start_gif_message_id=sent.message_id)
             await show_city_selection(sent, db)
             return
         except Exception as e:
             logfire.warning(f"Ошибка отправки START_GIF: {e}")
 
-    # Резерв: без гифки
     await message.answer(
         "Бот поможет быть в курсе актуальных и интересных мероприятий твоего ВУЗа по выбранным категориям интересов. А еще здесь можно создать свое мероприятие. Начнем!\n\n"
-        "Для начала выберите ваш университет:",
+        "Для начала выберите ваши университеты:",
         reply_markup=get_city_keyboard(),
         parse_mode="HTML"
     )
@@ -97,7 +89,7 @@ async def show_city_selection(message: Message, db):
         await message.edit_caption(
             caption=(
                 "Бот поможет быть в курсе актуальных и интересных мероприятий твоего ВУЗа по выбранным категориям интересов. А еще здесь можно создать свое мероприятие. Начнем!\n\n"
-                "Для начала выберите ваш университет:"
+                "Для начала выберите ваши университеты:"
             ),
             reply_markup=get_city_keyboard(),
             parse_mode="HTML"
@@ -111,22 +103,16 @@ async def show_main_menu(message: Message):
     if MAIN_MENU_GIF_IDS:
         selected_gif = random.choice(MAIN_MENU_GIF_IDS)
         try:
-            # ✅ Отправляем гифку с подписью и клавиатурой
             await message.answer_animation(
                 animation=selected_gif,
-                caption="",  # Можно оставить пустым
+                caption="",
                 parse_mode="HTML",
                 reply_markup=get_main_keyboard()
             )
             return
         except Exception as e:
             logfire.warning(f"Ошибка отправки гифки главного меню: {e}")
-
-    # Резерв: если гифок нет — текстовое меню
-    await message.answer(
-        "Выберите действие:",
-        reply_markup=get_main_keyboard()
-    )
+    await message.answer("Выберите действие:", reply_markup=get_main_keyboard())
 
 
 @router.message(F.text.in_(["/menu", "/main_menu"]))
