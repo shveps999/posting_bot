@@ -9,11 +9,8 @@ def get_city_keyboard(for_post: bool = False, selected_cities: list = None) -> I
         "УрГАУ", "РГППУ", "РАНХиГС"
     ]
     
-    # ✅ Важно: не изменяем список по ссылке
     if selected_cities is None:
         selected_cities = []
-    else:
-        selected_cities = list(selected_cities)  # Создаём копию
     
     builder = InlineKeyboardBuilder()
     prefix = "post_city_" if for_post else "city_"
@@ -26,12 +23,15 @@ def get_city_keyboard(for_post: bool = False, selected_cities: list = None) -> I
     
     builder.adjust(2)
     
-    if not for_post:
-        builder.row(
-            InlineKeyboardButton(
-                text="Подтвердить ✓", 
-                callback_data="confirm_cities"
-            )
-        )
+    # Всегда добавляем "Подтвердить", даже для постов
+    buttons = [
+        InlineKeyboardButton(text="Подтвердить ✓", callback_data="confirm_post_cities")
+    ]
+    
+    # Если это для поста — добавляем "Отмена"
+    if for_post:
+        buttons.append(InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_post"))
+    
+    builder.row(*buttons)
     
     return builder.as_markup()
