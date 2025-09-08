@@ -1,9 +1,9 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete, insert
 from sqlalchemy.orm import selectinload
 from typing import List
 from ..repositories import UserRepository
-from ..models import User, Category, City
+from ..models import User, Category, City, user_cities
 
 
 class UserService:
@@ -27,20 +27,41 @@ class UserService:
 
     @staticmethod
     async def select_cities(db: AsyncSession, user_id: int, city_names: List[str]) -> User:
-        result = await db.execute(select(User).where(User.id == user_id))
-        user = result.scalar_one()
+        # Удаляем старые связи
+        await db.execute(
+            delete(user_cities).where(user_cities.c.user_id == user_id)
+        )
+
+        # Получаем или создаём города
         result = await db.execute(select(City).where(City.name.in_(city_names)))
-        cities = result.scalars().all()
+        cities = list(result.scalars().all())
         existing_names = {c.name for c in cities}
+
+        # Добавляем отсутствующие города
+        new_cities = []
         for name in city_names:
             if name not in existing_names:
                 new_city = City(name=name)
                 db.add(new_city)
+                new_cities.append(new_city)
                 cities.append(new_city)
-        user.cities = cities
+
+        await db.flush()  # Сохраняем новые города, чтобы получить ID
+
+        # Добавляем связи в user_cities
+        if cities:
+            values = [{"user_id": user_id, "city_id": city.id} for city in cities]
+            await db.execute(insert(user_cities).values(values))
+
         await db.commit()
-        await db.refresh(user)
-        return user
+
+        # Возвращаем обновлённого пользователя
+        result = await db.execute(
+            select(User)
+            .where(User.id == user_id)
+            .options(selectinload(User.cities))
+        )
+        return result.scalar_one()
 
     @staticmethod
     async def get_user_categories(db: AsyncSession, user_id: int) -> List[Category]:
