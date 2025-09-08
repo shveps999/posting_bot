@@ -45,6 +45,9 @@ async def cmd_start(message: Message, state: FSMContext, db):
         await show_main_menu(message)
         return
 
+    # Подтягиваем выбранные города из БД
+    selected_cities = [city.name for city in user_cities] if user_cities else []
+
     if START_GIF_ID:
         try:
             sent = await message.answer_animation(
@@ -52,8 +55,8 @@ async def cmd_start(message: Message, state: FSMContext, db):
                 caption="✨ Загружаем Сердце...",
                 parse_mode="HTML"
             )
-            await state.update_data(start_gif_message_id=sent.message_id)
-            await show_city_selection(sent, db)
+            await state.update_data(start_gif_message_id=sent.message_id, selected_cities=selected_cities)
+            await show_city_selection(sent, db, selected_cities)
             return
         except Exception as e:
             logfire.warning(f"Ошибка отправки START_GIF: {e}")
@@ -61,19 +64,20 @@ async def cmd_start(message: Message, state: FSMContext, db):
     await message.answer(
         "Бот поможет быть в курсе актуальных и интересных мероприятий твоего ВУЗа по выбранным категориям интересов. А еще здесь можно создать свое мероприятие. Начнем!\n\n"
         "Для начала выберите ваши университеты:",
-        reply_markup=get_city_keyboard(),
+        reply_markup=get_city_keyboard(selected_cities=selected_cities),
         parse_mode="HTML"
     )
     await state.set_state(UserStates.waiting_for_cities)
+    await state.update_data(selected_cities=selected_cities)
 
 
-async def show_city_selection(message: Message, db):
+async def show_city_selection(message: Message, db, selected_cities=None):
     """Показать выбор города, отредактировав сообщение с гифкой"""
     try:
         await safe_edit_message(
             message=message,
             text="Для начала выберите ваши университеты:",
-            reply_markup=get_city_keyboard(),
+            reply_markup=get_city_keyboard(selected_cities=selected_cities or []),
             parse_mode="HTML"
         )
     except Exception as e:
