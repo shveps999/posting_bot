@@ -15,6 +15,7 @@ from events_bot.bot.keyboards import (
 from events_bot.storage import file_storage
 from loguru import logger
 from datetime import timezone
+from events_bot.bot.handlers.start_handler import MAIN_MENU_GIF_IDS
 
 router = Router()
 
