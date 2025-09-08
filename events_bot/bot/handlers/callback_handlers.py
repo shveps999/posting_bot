@@ -85,7 +85,7 @@ async def confirm_categories_selection(callback: CallbackQuery, state: FSMContex
         try:
             await callback.message.answer_animation(
                 animation=selected_gif,
-                caption="✨ Добро пожаловать в Сердце!\n\nВыберите действие:",
+                caption="",
                 parse_mode="HTML",
                 reply_markup=get_main_keyboard()
             )
