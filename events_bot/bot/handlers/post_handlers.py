@@ -53,41 +53,19 @@ async def start_create_post(callback: CallbackQuery, state: FSMContext, db):
     # Устанавливаем начальное состояние создания поста
     await state.set_state(PostStates.creating_post)
 
-    # Пытаемся отредактировать как caption (если это гифка)
+    # 🔥 Удаляем гифку (или любое сообщение) — чтобы не было проблем с edit_text
     try:
-        await callback.message.edit_caption(
-            caption="📍 Выберите город для поста:",
-            reply_markup=get_city_keyboard(for_post=True),
-        )
-        await state.set_state(PostStates.waiting_for_city_selection)
-        await callback.answer()
-        return
+        await callback.message.delete()
     except Exception as e:
-        if "message is not modified" in str(e):
-            await callback.answer()
-            return
-        # Если edit_caption не сработал — пробуем edit_text
-        try:
-            await callback.message.edit_text(
-                "📍 Выберите город для поста:",
-                reply_markup=get_city_keyboard(for_post=True),
-            )
-            await state.set_state(PostStates.waiting_for_city_selection)
-            await callback.answer()
-            return
-        except Exception:
-            # Если и это не сработало — удаляем и отправляем новое
-            try:
-                await callback.message.delete()
-            except Exception:
-                pass
-            await callback.message.answer(
-                "📍 Выберите город для поста:",
-                reply_markup=get_city_keyboard(for_post=True),
-            )
-            await state.set_state(PostStates.waiting_for_city_selection)
-            await callback.answer()
-            return
+        logfire.warning(f"Не удалось удалить сообщение: {e}")
+
+    # Отправляем выбор города
+    await callback.message.answer(
+        "📍 Выберите город для поста:",
+        reply_markup=get_city_keyboard(for_post=True),
+    )
+    await state.set_state(PostStates.waiting_for_city_selection)
+    await callback.answer()
 
 
 @router.callback_query(F.data == "cancel_post")
