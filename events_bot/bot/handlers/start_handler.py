@@ -4,6 +4,7 @@ from aiogram.fsm.context import FSMContext
 from events_bot.database.services import UserService
 from events_bot.bot.states import UserStates
 from events_bot.bot.keyboards import get_city_keyboard, get_main_keyboard
+from events_bot.utils.telegram import safe_edit_message
 import os
 import random
 import logfire
