@@ -10,6 +10,7 @@ from events_bot.bot.handlers.feed_handlers import show_liked_page_from_animation
 from events_bot.bot.keyboards.feed_keyboard import get_liked_list_keyboard
 import logfire
 import os
+import random
 
 # Гифки
 LIKED_GIF_ID = os.getenv("LIKED_GIF_ID")
