@@ -110,7 +110,7 @@ async def show_main_menu(message: Message):
             # ✅ Отправляем гифку с подписью и клавиатурой
             await message.answer_animation(
                 animation=selected_gif,
-                caption="✨ Выберите действие:",  # Можно оставить пустым
+                caption="",  # Можно оставить пустым
                 parse_mode="HTML",
                 reply_markup=get_main_keyboard()
             )
