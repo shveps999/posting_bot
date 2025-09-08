@@ -11,37 +11,24 @@ from aiogram import Bot
 
 
 class NotificationService:
-    """Асинхронный сервис для работы с уведомлениями"""
-
     @staticmethod
     async def get_users_to_notify(db: AsyncSession, post: Post) -> List[User]:
-        """Получить пользователей для уведомления о новом посте"""
         await db.refresh(post, attribute_names=["author", "categories"])
-
-        post_city = getattr(post, "city", None)
         category_ids = [cat.id for cat in post.categories]
-        logfire.info(
-            f"Ищем пользователей для уведомления: город={post_city}, категории={category_ids}"
+        post_city = getattr(post, "city", None)
+        if not post_city:
+            return []
+        return await UserRepository.get_users_by_categories_and_cities(
+            db, category_ids, [post_city]
         )
-
-        users = await UserRepository.get_users_by_city_and_categories(
-            db, post_city, category_ids
-        )
-        logfire.info(
-            f"Найдено {len(users)} пользователей для уведомления (включая автора)"
-        )
-        return users
 
     @staticmethod
     def format_post_notification(post: Post) -> str:
-        """Форматировать уведомление о посте"""
         category_str = get_clean_category_string(
             post.categories if hasattr(post, "categories") else None
         )
         event_at = getattr(post, "event_at", None)
         event_str = event_at.strftime("%d.%m.%Y %H:%M") if event_at else ""
-        
-        # ✅ Добавлены переменные
         post_city = getattr(post, "city", "Не указан")
         address = getattr(post, "address", "Не указан")
 
@@ -60,11 +47,8 @@ class NotificationService:
 
     @staticmethod
     async def send_post_notification(bot: Bot, post: Post, users: List[User], db: AsyncSession) -> None:
-        """Отправить уведомления о новом посте"""
         logfire.info(f"Отправляем уведомления о посте {post.id} {len(users)} пользователям")
-        
         await db.refresh(post, attribute_names=["author", "categories"])
-        
         notification_text = NotificationService.format_post_notification(post)
         post_url = getattr(post, "url", None)
 
@@ -73,18 +57,14 @@ class NotificationService:
 
         for user in users:
             try:
-                logfire.debug(f"Отправляем уведомление пользователю {user.id}")
-
                 is_liked = await db.scalar(
                     select(Like.id).where(Like.user_id == user.id, Like.post_id == post.id)
                 ) is not None
-
                 keyboard = get_post_notification_keyboard(
                     post_id=post.id,
                     is_liked=is_liked,
                     url=post_url,
                 )
-
                 if post.image_id:
                     media_photo = await file_storage.get_media_photo(post.image_id)
                     if media_photo:
@@ -109,7 +89,6 @@ class NotificationService:
                         reply_markup=keyboard,
                         parse_mode="HTML"
                     )
-
                 success_count += 1
             except Exception as e:
                 logfire.warning(f"Ошибка отправки уведомления пользователю {user.id}: {e}")
