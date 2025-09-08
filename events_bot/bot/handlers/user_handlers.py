@@ -121,7 +121,10 @@ async def cmd_my_posts(message: Message, db):
 
 @router.message(F.text == "/change_university")
 async def cmd_change_city(message: Message, state: FSMContext):
-    await message.answer("Выберите университеты для получения уведомлений и подборки:", reply_markup=get_city_keyboard())
+    await message.answer(
+        "Выберите университеты для получения уведомлений и подборки:",
+        reply_markup=get_city_keyboard()
+    )
     await state.set_state(UserStates.waiting_for_cities)
 
 
@@ -185,9 +188,14 @@ async def process_city_selection_callback(callback: CallbackQuery, state: FSMCon
 
     await state.update_data(selected_cities=selected_cities)
 
-    await callback.message.edit_reply_markup(
-        reply_markup=get_city_keyboard(selected_cities=selected_cities)
-    )
+    try:
+        await callback.message.edit_text(
+            callback.message.text or "Выберите университеты:",
+            reply_markup=get_city_keyboard(selected_cities=selected_cities)
+        )
+    except Exception as e:
+        logfire.error(f"Не удалось обновить сообщение: {e}")
+
     await callback.answer()
 
 
@@ -195,6 +203,7 @@ async def process_city_selection_callback(callback: CallbackQuery, state: FSMCon
 async def confirm_cities(callback: CallbackQuery, state: FSMContext, db):
     data = await state.get_data()
     selected_cities = data.get("selected_cities", [])
+
     if not selected_cities:
         await callback.answer("Выберите хотя бы один университет!")
         return
@@ -210,14 +219,12 @@ async def confirm_cities(callback: CallbackQuery, state: FSMContext, db):
 
     categories = await CategoryService.get_all_categories(db)
     try:
-        await callback.message.delete()
-        await callback.message.answer(
+        await callback.message.edit_text(
             "Теперь выберите категории интересов:",
-            reply_markup=get_category_selection_keyboard(categories),
+            reply_markup=get_category_selection_keyboard(categories)
         )
     except Exception as e:
-        if "message is not modified" not in str(e):
-            raise
+        logfire.error(f"Ошибка при смене текста: {e}")
     await state.set_state(UserStates.waiting_for_categories)
     await callback.answer()
 
@@ -226,12 +233,13 @@ async def confirm_cities(callback: CallbackQuery, state: FSMContext, db):
 async def change_city_callback(callback: CallbackQuery, state: FSMContext):
     try:
         await callback.message.delete()
-        await callback.message.answer(
-            "Выберите университеты для кастомизации уведомлений и подборки:", reply_markup=get_city_keyboard()
-        )
-    except Exception as e:
-        if "message is not modified" not in str(e):
-            raise
+    except Exception:
+        pass
+
+    await callback.message.answer(
+        "Выберите университеты для кастомизации уведомлений и подборки:",
+        reply_markup=get_city_keyboard()
+    )
     await state.set_state(UserStates.waiting_for_cities)
     await callback.answer()
 
