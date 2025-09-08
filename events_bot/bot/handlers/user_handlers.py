@@ -121,10 +121,22 @@ async def cmd_my_posts(message: Message, db):
 
 
 @router.message(F.text == "/change_university")
-async def cmd_change_city(message: Message, state: FSMContext):
+async def cmd_change_city(message: Message, state: FSMContext, db):
+    user = await UserService.register_user(
+        db=db,
+        telegram_id=message.from_user.id,
+        username=message.from_user.username,
+        first_name=message.from_user.first_name,
+        last_name=message.from_user.last_name,
+    )
+    user_cities = await UserService.get_user_cities(db, user.id)
+    selected_cities = [c.name for c in user_cities] if user_cities else []
+
+    await state.update_data(selected_cities=selected_cities)
+
     await message.answer(
         "Выберите университеты для получения уведомлений и подборки:",
-        reply_markup=get_city_keyboard()
+        reply_markup=get_city_keyboard(selected_cities=selected_cities)
     )
     await state.set_state(UserStates.waiting_for_cities)
 
@@ -179,24 +191,19 @@ async def cmd_help(message: Message):
 @router.callback_query(F.data.startswith("city_"))
 async def process_city_selection_callback(callback: CallbackQuery, state: FSMContext, db):
     city_name = callback.data[5:]  # Убираем "city_"
-    
-    # Получаем текущий выбор из состояния
+
     data = await state.get_data()
     selected_cities = data.get("selected_cities", [])
-    
-    # Переключаем выбор
+
     if city_name in selected_cities:
         selected_cities.remove(city_name)
     else:
         selected_cities.append(city_name)
-    
-    # Сохраняем обновлённый список
+
     await state.update_data(selected_cities=selected_cities)
 
-    # Логируем для отладки
     logfire.info(f"Город {city_name} -> выбранные: {selected_cities}")
 
-    # Обновляем клавиатуру
     await safe_edit_message(
         message=callback.message,
         text="Выберите университеты:",
@@ -235,11 +242,24 @@ async def confirm_cities(callback: CallbackQuery, state: FSMContext, db):
         if "message to delete not found" not in str(e):
             raise
     await state.set_state(UserStates.waiting_for_categories)
+    # Не вызываем state.clear() — чтобы не потерять данные
     await callback.answer()
 
 
 @router.callback_query(F.data == "change_city")
-async def change_city_callback(callback: CallbackQuery, state: FSMContext):
+async def change_city_callback(callback: CallbackQuery, state: FSMContext, db):
+    user = await UserService.register_user(
+        db=db,
+        telegram_id=callback.from_user.id,
+        username=callback.from_user.username,
+        first_name=callback.from_user.first_name,
+        last_name=callback.from_user.last_name,
+    )
+    user_cities = await UserService.get_user_cities(db, user.id)
+    selected_cities = [c.name for c in user_cities] if user_cities else []
+
+    await state.update_data(selected_cities=selected_cities)
+
     try:
         await callback.message.delete()
     except Exception:
@@ -247,7 +267,7 @@ async def change_city_callback(callback: CallbackQuery, state: FSMContext):
 
     await callback.message.answer(
         "Выберите университеты для кастомизации уведомлений и подборки:",
-        reply_markup=get_city_keyboard()
+        reply_markup=get_city_keyboard(selected_cities=selected_cities)
     )
     await state.set_state(UserStates.waiting_for_cities)
     await callback.answer()
