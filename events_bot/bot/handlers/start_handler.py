@@ -6,6 +6,7 @@ from events_bot.bot.states import UserStates
 from events_bot.bot.keyboards import get_city_keyboard, get_main_keyboard
 import os
 import random
+import logfire
 
 router = Router()
 
@@ -39,6 +40,13 @@ async def cmd_start(message: Message, state: FSMContext, db):
         await message.delete()
     except Exception:
         pass
+
+    # 🧹 ГАРАНТИРОВАННО убираем любую Reply-клавиатуру
+    try:
+        await message.answer("⏳", reply_markup=None)
+        await message.delete()
+    except Exception as e:
+        logfire.warning(f"Не удалось очистить клавиатуру: {e}")
 
     # Регистрируем пользователя
     user = await UserService.register_user(
@@ -74,6 +82,7 @@ async def cmd_start(message: Message, state: FSMContext, db):
         "👋 Добро пожаловать в Сердце! Бот поможет быть в курсе актуальных и интересных мероприятий твоего города по выбранным категориям интересов. А еще здесь можно создать свое мероприятие. Начнем!\n\n"
         "Для начала выберите ваш город:",
         reply_markup=get_city_keyboard(),
+        parse_mode="HTML"
     )
     await state.set_state(UserStates.waiting_for_city)
 
