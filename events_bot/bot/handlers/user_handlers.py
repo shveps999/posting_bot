@@ -12,50 +12,16 @@ import logfire
 import os
 import random
 
-# Гифки
 LIKED_GIF_ID = os.getenv("LIKED_GIF_ID")
 
 router = Router()
 
 
-@router.callback_query(F.data.startswith("notify_heart_"))
-async def handle_notify_heart(callback: CallbackQuery, db):
-    """Обработка нажатия на 'В избранное' в уведомлении"""
-    try:
-        post_id = int(callback.data.split("notify_heart_")[1])
-        user_id = callback.from_user.id
-
-        # Переключаем лайк
-        result = await LikeService.toggle_like(db, user_id, post_id)
-        is_liked = result["action"] == "added"
-
-        # Получаем URL поста
-        post = await PostService.get_post_by_id(db, post_id)
-        post_url = getattr(post, "url", None)
-
-        # Обновляем клавиатуру
-        new_keyboard = get_post_notification_keyboard(
-            post_id=post_id,
-            is_liked=is_liked,
-            url=post_url
-        )
-        await callback.message.edit_reply_markup(reply_markup=new_keyboard)
-
-        # Ответ пользователю
-        action_text = "добавлено" if is_liked else "удалено"
-        await callback.answer(f"Избранное {action_text}", show_alert=True)
-
-    except Exception as e:
-        await callback.answer("❌ Ошибка при изменении избранного", show_alert=True)
-
-
 @router.message(F.text == "/delete_user")
 async def cmd_delete_user(message: Message, db):
-    """Удаление пользователя и всех его данных"""
     user_id = message.from_user.id
     logfire.info(f"Пользователь {user_id} запросил удаление аккаунта")
 
-    # Проверяем, существует ли пользователь
     user = await UserService.register_user(
         db=db,
         telegram_id=user_id,
@@ -67,7 +33,6 @@ async def cmd_delete_user(message: Message, db):
         await message.answer("❌ Ваш аккаунт уже удалён или не существует.")
         return
 
-    # Удаляем пользователя
     success = await UserService.delete_user(db, user_id)
     if success:
         await message.answer(
@@ -81,16 +46,12 @@ async def cmd_delete_user(message: Message, db):
 
 @router.message(F.text == "/liked_posts")
 async def cmd_liked_posts(message: Message, db):
-    """Обработчик команды /liked_posts — открытие избранного"""
     logfire.info(f"Пользователь {message.from_user.id} открывает избранное через команду")
-    
-    # Удаляем команду
     try:
         await message.delete()
     except Exception:
         pass
 
-    # Показываем гифку "загрузка"
     if LIKED_GIF_ID:
         try:
             sent = await message.answer_animation(
@@ -103,12 +64,10 @@ async def cmd_liked_posts(message: Message, db):
         except Exception as e:
             logfire.warning(f"Ошибка отправки гифки избранного: {e}")
 
-    # Резервный вариант — без гифки
     await show_liked_page_cmd(message, 0, db, user_id=message.from_user.id)
 
 
 async def show_liked_page_cmd(message: Message, page: int, db, user_id: int):
-    """Показать страницу избранного (через Message)"""
     posts = await PostService.get_liked_posts(db, user_id, POSTS_PER_PAGE, page * POSTS_PER_PAGE)
     if not posts:
         await message.answer(
@@ -135,19 +94,14 @@ async def show_liked_page_cmd(message: Message, page: int, db, user_id: int):
 
 
 def register_user_handlers(dp: Router):
-    """Регистрация обработчиков пользователя"""
     dp.include_router(router)
 
 
 @router.message(F.text == "/my_posts")
 async def cmd_my_posts(message: Message, db):
-    """Обработчик команды /my_posts"""
     posts = await PostService.get_user_posts(db, message.from_user.id)
-
     if not posts:
-        await message.answer(
-            "📭 У вас пока нет постов.", reply_markup=get_main_keyboard()
-        )
+        await message.answer("📭 У вас пока нет постов.", reply_markup=get_main_keyboard())
         return
 
     response = "📊 Ваши посты:\n\n"
@@ -167,14 +121,12 @@ async def cmd_my_posts(message: Message, db):
 
 @router.message(F.text == "/change_university")
 async def cmd_change_city(message: Message, state: FSMContext):
-    """Обработчик команды /change_university"""
     await message.answer("Выберите университеты для получения уведомлений и подборки:", reply_markup=get_city_keyboard())
     await state.set_state(UserStates.waiting_for_cities)
 
 
 @router.message(F.text == "/change_category")
 async def cmd_change_category(message: Message, state: FSMContext, db):
-    """Обработчик команды /change_category"""
     categories = await CategoryService.get_all_categories(db)
     user_categories = await UserService.get_user_categories(db, message.from_user.id)
     selected_ids = [cat.id for cat in user_categories]
@@ -188,7 +140,6 @@ async def cmd_change_category(message: Message, state: FSMContext, db):
 
 @router.message(F.text == "/help")
 async def cmd_help(message: Message):
-    """Обработчик команды /help"""
     help_text = """Справка по Сердцу. Основные функции:
 
 💌 Главное меню - /menu
@@ -218,13 +169,11 @@ async def cmd_help(message: Message):
 
 По любым вопросам обращайтесь в поддержку @serdce_help
 """
-
     await message.answer(help_text, reply_markup=get_main_keyboard())
 
 
 @router.callback_query(F.data.startswith("city_"))
 async def process_city_selection_callback(callback: CallbackQuery, state: FSMContext, db):
-    """Обработка выбора города через инлайн-кнопку"""
     city_name = callback.data[5:]
     data = await state.get_data()
     selected_cities = data.get("selected_cities", [])
@@ -244,10 +193,8 @@ async def process_city_selection_callback(callback: CallbackQuery, state: FSMCon
 
 @router.callback_query(F.data == "confirm_cities")
 async def confirm_cities(callback: CallbackQuery, state: FSMContext, db):
-    """Подтверждение выбора городов"""
     data = await state.get_data()
     selected_cities = data.get("selected_cities", [])
-
     if not selected_cities:
         await callback.answer("Выберите хотя бы один университет!")
         return
@@ -277,7 +224,6 @@ async def confirm_cities(callback: CallbackQuery, state: FSMContext, db):
 
 @router.callback_query(F.data == "change_city")
 async def change_city_callback(callback: CallbackQuery, state: FSMContext):
-    """Изменение города через инлайн-кнопку"""
     try:
         await callback.message.delete()
         await callback.message.answer(
@@ -292,7 +238,6 @@ async def change_city_callback(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "change_category")
 async def change_category_callback(callback: CallbackQuery, state: FSMContext, db):
-    """Изменение категории через инлайн-кнопку"""
     categories = await CategoryService.get_all_categories(db)
     user_categories = await UserService.get_user_categories(db, callback.from_user.id)
     selected_ids = [cat.id for cat in user_categories]
@@ -312,15 +257,11 @@ async def change_category_callback(callback: CallbackQuery, state: FSMContext, d
 
 @router.callback_query(F.data == "my_posts")
 async def show_my_posts_callback(callback: CallbackQuery, db):
-    """Показать посты пользователя через инлайн-кнопку"""
     posts = await PostService.get_user_posts(db, callback.from_user.id)
-
     if not posts:
         try:
             await callback.message.delete()
-            await callback.message.answer(
-                "📭 У вас пока нет постов.", reply_markup=get_main_keyboard()
-            )
+            await callback.message.answer("📭 У вас пока нет постов.", reply_markup=get_main_keyboard())
         except Exception as e:
             if "message is not modified" not in str(e):
                 raise
@@ -349,7 +290,6 @@ async def show_my_posts_callback(callback: CallbackQuery, db):
 
 @router.callback_query(F.data == "help")
 async def show_help_callback(callback: CallbackQuery):
-    """Показать справку через инлайн-кнопку"""
     help_text = """Справка по Сердцу. Основные функции:
 
 💌 Главное меню - /menu
@@ -379,7 +319,6 @@ async def show_help_callback(callback: CallbackQuery):
 
 По любым вопросам обращайтесь в поддержку @serdce_help
 """
-
     try:
         await callback.message.delete()
         await callback.message.answer(help_text, reply_markup=get_main_keyboard())
