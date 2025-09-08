@@ -34,7 +34,6 @@ class TimestampMixin:
     )
 
 
-# Таблица связи многие-ко-многим для пользователей и категорий
 user_categories = Table(
     "user_categories",
     Base.metadata,
@@ -42,7 +41,6 @@ user_categories = Table(
     Column("category_id", ForeignKey("categories.id"), primary_key=True),
 )
 
-# Таблица связи многие-ко-многим для пользователей и городов
 user_cities = Table(
     "user_cities",
     Base.metadata,
@@ -50,7 +48,6 @@ user_cities = Table(
     Column("city_id", ForeignKey("cities.id"), primary_key=True),
 )
 
-# Таблица связи многие-ко-многим для постов и категорий
 post_categories = Table(
     "post_categories",
     Base.metadata,
@@ -76,7 +73,6 @@ class User(Base, TimestampMixin):
     last_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    # Связи
     categories: Mapped[List["Category"]] = relationship(
         secondary=user_categories, back_populates="users"
     )
