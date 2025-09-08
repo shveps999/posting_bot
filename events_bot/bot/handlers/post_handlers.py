@@ -70,20 +70,35 @@ async def start_create_post(callback: CallbackQuery, state: FSMContext, db):
 
 @router.callback_query(F.data == "cancel_post")
 async def cancel_post_creation(callback: CallbackQuery, state: FSMContext, db):
-    """Отмена создания поста"""
+    """Отмена создания поста — с возвратом через гифку главного меню"""
     await state.clear()
+
+    # Удаляем текущее сообщение (с выбором города/категорий)
     try:
-        if callback.message.text:
-            await callback.message.edit_text(
-                "Создание мероприятия отменено ✖️", reply_markup=get_main_keyboard()
-            )
-        elif callback.message.caption:
-            await callback.message.edit_caption(
-                caption="Создание мероприятия отменено ✖️", reply_markup=get_main_keyboard()
-            )
+        await callback.message.delete()
     except Exception as e:
-        if "message is not modified" not in str(e):
-            raise
+        logfire.warning(f"Не удалось удалить сообщение при отмене: {e}")
+
+    # ✅ Отправляем гифку главного меню с подписью и кнопками
+    if MAIN_MENU_GIF_IDS:
+        selected_gif = random.choice(MAIN_MENU_GIF_IDS)
+        try:
+            await callback.message.answer_animation(
+                animation=selected_gif,
+                caption="",
+                parse_mode="HTML",
+                reply_markup=get_main_keyboard()
+            )
+            await callback.answer()
+            return
+        except Exception as e:
+            logfire.warning(f"Ошибка отправки гифки при отмене: {e}")
+
+    # Резерв: если гифок нет или ошибка
+    await callback.message.answer(
+        "✨ Главное меню",
+        reply_markup=get_main_keyboard()
+    )
     await callback.answer()
 
 
