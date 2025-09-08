@@ -140,7 +140,6 @@ async def show_liked_page_cmd(message: Message, page: int, db, user_id: int):
 
 @router.callback_query(UserStates.waiting_for_categories, F.data == "confirm_categories")
 async def confirm_categories(callback: CallbackQuery, state: FSMContext, db):
-    """Подтверждение выбора категорий — с возвратом в главное меню с гифкой"""
     data = await state.get_data()
     selected_ids = data.get("selected_categories", [])
 
@@ -151,39 +150,31 @@ async def confirm_categories(callback: CallbackQuery, state: FSMContext, db):
     # Сохраняем категории
     await UserService.select_categories(db, callback.from_user.id, selected_ids)
 
-    # Удаляем сообщение с выбором категорий
     try:
-        await callback.message.delete()
-    except Exception as e:
-        logfire.warning(f"Не удалось удалить сообщение: {e}")
-
-    # 🔁 Сбрасываем Reply-клавиатуру (на всякий случай)
-    try:
-        reset_msg = await callback.message.answer("‌", reply_markup=None)  # Zero-width space
-        await asyncio.sleep(0.1)
-        await reset_msg.delete()
-    except Exception as e:
-        logfire.warning(f"Ошибка сброса клавиатуры: {e}")
-
-    # ✅ Отправляем гифку главного меню
-    try:
+        # ✅ Редактируем текущее сообщение, а не удаляем
         if MAIN_MENU_GIF_IDS:
             selected_gif = random.choice(MAIN_MENU_GIF_IDS)
-            await callback.bot.send_animation(
-                chat_id=callback.message.chat.id,
-                animation=selected_gif,
-                reply_markup=get_main_keyboard(),
-                # ❌ input_field_placeholder не работает с animation — но мы уже сбросили клавиатуру выше
+            from aiogram.types import InputMediaAnimation
+            await callback.message.edit_media(
+                media=InputMediaAnimation(
+                    media=selected_gif,
+                    caption="",  # Можно добавить текст
+                ),
+                reply_markup=get_main_keyboard()
             )
         else:
-            # Резерв: текстовое меню
-            await callback.message.answer(
+            # Резерв: просто текст
+            await callback.message.edit_text(
                 "Выберите действие:",
-                reply_markup=get_main_keyboard(),
-                input_field_placeholder=""
+                reply_markup=get_main_keyboard()
             )
     except Exception as e:
-        logfire.warning(f"Ошибка отправки гифки главного меню: {e}")
+        logfire.warning(f"Ошибка редактирования на гифку: {e}")
+        # Фолбэк: если не получилось — отправляем текст (но это может вернуть кнопку)
+        try:
+            await callback.message.delete()
+        except:
+            pass
         await callback.message.answer(
             "Выберите действие:",
             reply_markup=get_main_keyboard(),
