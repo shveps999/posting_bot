@@ -131,15 +131,14 @@ async def select_all_cities(callback: CallbackQuery, state: FSMContext, db):
 
 @router.callback_query(PostStates.waiting_for_city_selection, F.data == "post_city_confirm")
 async def confirm_city_selection(callback: CallbackQuery, state: FSMContext, db):
-    data = await state.get_data()
-    selected_cities = data.get('selected_cities', [])
-    
-    # 🔽 Добавьте эти строки для отладки
+    """Подтверждение выбора городов для поста"""
     current_state = await state.get_state()
     logfire.info(f"Текущее состояние: {current_state}")
+    
+    data = await state.get_data()
+    selected_cities = data.get('selected_cities', [])
     logfire.info(f"[confirm_city_selection] selected_cities = {selected_cities}")
-    # 🔼 Логирование добавлено
-
+    
     if not selected_cities:
         await callback.answer("Выберите хотя бы один университет!")
         return
