@@ -223,11 +223,34 @@ async def cmd_help(message: Message):
 
 
 @router.callback_query(F.data.startswith("city_"))
-async def process_city_selection_callback(
-    callback: CallbackQuery, state: FSMContext, db
-):
-    """Обработка выбора города через инлайн-кнопку"""
-    city = callback.data[5:]
+async def process_city_selection_callback(callback: CallbackQuery, state: FSMContext, db):
+    city_name = callback.data[5:]
+    data = await state.get_data()
+    selected_cities = data.get("selected_cities", [])
+
+    if city_name in selected_cities:
+        selected_cities.remove(city_name)
+    else:
+        selected_cities.append(city_name)
+
+    await state.update_data(selected_cities=selected_cities)
+
+    await callback.message.edit_reply_markup(
+        reply_markup=get_city_keyboard(selected_cities=selected_cities)
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "confirm_cities")
+async def confirm_cities(callback: CallbackQuery, state: FSMContext, db):
+    data = await state.get_data()
+    selected_cities = data.get("selected_cities", [])
+
+    if not selected_cities:
+        await callback.answer("Выберите хотя бы один университет!")
+        return
+
+    # Сохраняем выбранные города
     user = await UserService.register_user(
         db=db,
         telegram_id=callback.from_user.id,
@@ -235,13 +258,14 @@ async def process_city_selection_callback(
         first_name=callback.from_user.first_name,
         last_name=callback.from_user.last_name,
     )
-    user.city = city
-    await db.commit()
+    await UserService.select_cities(db, user.id, selected_cities)
+
+    # Переходим к выбору категорий
     categories = await CategoryService.get_all_categories(db)
     try:
         await callback.message.delete()
         await callback.message.answer(
-            f"📍 Город {city} выбран!\n\nТеперь выберите категории интересов для кастомизации уведомлений и подборки:",
+            "Теперь выберите категории интересов:",
             reply_markup=get_category_selection_keyboard(categories),
         )
     except Exception as e:
