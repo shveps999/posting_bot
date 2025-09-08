@@ -23,15 +23,15 @@ def get_city_keyboard(for_post: bool = False, selected_cities: list = None) -> I
     
     builder.adjust(2)
     
-    # Всегда добавляем "Подтвердить", даже для постов
-    buttons = [
-        InlineKeyboardButton(text="Подтвердить ✓", callback_data="confirm_post_cities")
-    ]
+    # Кнопка "Подтвердить" — с правильным callback_data
+    builder.row(
+        InlineKeyboardButton(text="✅ Подтвердить", callback_data="post_city_confirm")
+    )
     
-    # Если это для поста — добавляем "Отмена"
+    # Кнопка "Отмена" — только для постов
     if for_post:
-        buttons.append(InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_post"))
-    
-    builder.row(*buttons)
+        builder.row(
+            InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_post")
+        )
     
     return builder.as_markup()
