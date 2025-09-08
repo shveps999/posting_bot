@@ -9,8 +9,11 @@ def get_city_keyboard(for_post: bool = False, selected_cities: list = None) -> I
         "УрГАУ", "РГППУ", "РАНХиГС"
     ]
     
+    # ✅ Важно: не изменяем список по ссылке
     if selected_cities is None:
         selected_cities = []
+    else:
+        selected_cities = list(selected_cities)  # Создаём копию
     
     builder = InlineKeyboardBuilder()
     prefix = "post_city_" if for_post else "city_"
