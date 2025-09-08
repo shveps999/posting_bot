@@ -3,7 +3,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 
 def get_city_keyboard(for_post: bool = False, selected_cities: list = None) -> InlineKeyboardMarkup:
-    """Инлайн-клавиатура для выбора городов"""
+    """Инлайн-клавиатура для выбора городов (университетов)"""
     cities = [
         "УрФУ", "УГМУ", "УрГЭУ", "УрГПУ",
         "УрГЮУ", "УГГУ", "УрГУПС", "УрГАХУ",
@@ -26,9 +26,9 @@ def get_city_keyboard(for_post: bool = False, selected_cities: list = None) -> I
             text = f"{city} {checkbox}".strip()
             builder.button(text=text, callback_data=f"{prefix}{city}")
         
-        # Кнопка "Выбрать все" — последняя в сетке
-        all_cities_selected = len(selected_cities) == len(cities)
-        select_all_text = f"Выбрать все ⭐️" if all_cities_selected else "Выбрать все"
+        # Кнопка "Выбрать все" — сразу после городов, как последняя в списке
+        all_selected = len(selected_cities) == len(cities)
+        select_all_text = f"Выбрать все ⭐️" if all_selected else "Выбрать все"
         builder.button(
             text=select_all_text,
             callback_data="post_city_select_all"
@@ -37,7 +37,7 @@ def get_city_keyboard(for_post: bool = False, selected_cities: list = None) -> I
         # Располагаем все кнопки (города + "Выбрать все") по 2 в ряд
         builder.adjust(2)
         
-        # Кнопки "Подтвердить" и "Отменить" — каждая на своей строке, всегда видны
+        # Кнопки "Подтвердить" и "Отменить" — всегда видны, каждая на своей строке
         builder.row(
             InlineKeyboardButton(
                 text="Подтвердить ✓", 
