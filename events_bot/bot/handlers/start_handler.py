@@ -67,12 +67,11 @@ async def cmd_start(message: Message, state: FSMContext, db):
 
 
 async def show_city_selection(message: Message, db):
+    """Показать выбор города, отредактировав сообщение с гифкой"""
     try:
-        await message.edit_caption(
-            caption=(
-                "Бот поможет быть в курсе актуальных и интересных мероприятий твоего ВУЗа по выбранным категориям интересов. А еще здесь можно создать свое мероприятие. Начнем!\n\n"
-                "Для начала выберите ваши университеты:"
-            ),
+        await safe_edit_message(
+            message=message,
+            text="Для начала выберите ваши университеты:",
             reply_markup=get_city_keyboard(),
             parse_mode="HTML"
         )
