@@ -28,6 +28,7 @@ from events_bot.bot.handlers import (
 from events_bot.bot.middleware import DatabaseMiddleware
 from events_bot.database.services.post_service import PostService
 from loguru import logger
+logfire.info("✅ Все обработчики зарегистрированы")
 
 logger.configure(handlers=[logfire.loguru_handler()])
 
