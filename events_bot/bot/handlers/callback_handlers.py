@@ -1,5 +1,5 @@
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, Message, InlineKeyboardButton
+from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from events_bot.database.services import UserService, CategoryService
 from events_bot.bot.states import UserStates
@@ -9,10 +9,6 @@ import random
 import logfire
 
 router = Router()
-
-
-def register_callback_handlers(dp: Router):
-    dp.include_router(router)
 
 
 @router.callback_query(F.data.startswith("category_"))
@@ -73,5 +69,5 @@ async def confirm_categories_selection(callback: CallbackQuery, state: FSMContex
         "Выберите действие:",
         reply_markup=get_main_keyboard()
     )
-    await state.clear()
+    # Убрано: await state.clear()
     await callback.answer()
