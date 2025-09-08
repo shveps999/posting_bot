@@ -151,30 +151,30 @@ async def confirm_categories(callback: CallbackQuery, state: FSMContext, db):
     await UserService.select_categories(db, callback.from_user.id, selected_ids)
 
     try:
-        # ✅ Редактируем текущее сообщение, а не удаляем
+        # Удаляем текущее сообщение
+        await callback.message.delete()
+
+        # ✅ Шаг 1: Отправляем гифку как photo
         if MAIN_MENU_GIF_IDS:
             selected_gif = random.choice(MAIN_MENU_GIF_IDS)
-            from aiogram.types import InputMediaAnimation
-            await callback.message.edit_media(
-                media=InputMediaAnimation(
-                    media=selected_gif,
-                    caption="",  # Можно добавить текст
-                ),
-                reply_markup=get_main_keyboard()
+            sent = await callback.bot.send_photo(
+                chat_id=callback.message.chat.id,
+                photo=selected_gif,
+                caption="",  # Пустой caption
+                reply_markup=None  # Без клавиатуры
             )
+            # ✅ Шаг 2: Через 0.5 сек — редактируем с клавиатурой
+            await asyncio.sleep(0.5)
+            await sent.edit_reply_markup(reply_markup=get_main_keyboard())
         else:
-            # Резерв: просто текст
-            await callback.message.edit_text(
+            # Резерв: текстовое меню
+            await callback.message.answer(
                 "Выберите действие:",
-                reply_markup=get_main_keyboard()
+                reply_markup=get_main_keyboard(),
+                input_field_placeholder=""
             )
     except Exception as e:
-        logfire.warning(f"Ошибка редактирования на гифку: {e}")
-        # Фолбэк: если не получилось — отправляем текст (но это может вернуть кнопку)
-        try:
-            await callback.message.delete()
-        except:
-            pass
+        logfire.warning(f"Ошибка отправки гифки: {e}")
         await callback.message.answer(
             "Выберите действие:",
             reply_markup=get_main_keyboard(),
