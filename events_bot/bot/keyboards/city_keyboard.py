@@ -7,7 +7,8 @@ def get_city_keyboard(for_post: bool = False, selected_cities: list = None) -> I
     cities = [
         "УрФУ", "УГМУ", "УрГЭУ", "УрГПУ",
         "УрГЮУ", "УГГУ", "УрГУПС", "УрГАХУ",
-        "УрГАУ", "РГППУ", "РАНХиГС"]
+        "УрГАУ", "РГППУ", "РАНХиГС"
+    ]
     
     if selected_cities is None:
         selected_cities = []
@@ -18,44 +19,40 @@ def get_city_keyboard(for_post: bool = False, selected_cities: list = None) -> I
     prefix = "post_city_" if for_post else "city_"
     
     if for_post:
-        # Кнопки с чекбоксами
+        # Добавляем кнопки городов и "Выбрать все" в сетку 2xN
+        all_cities_selected = len(selected_cities) == len(cities)
+        
+        # Кнопка "Выбрать все" с чекбоксом
+        select_all_text = f"Выбрать все ⭐️" if all_cities_selected else "Выбрать все"
+        builder.button(
+            text=select_all_text,
+            callback_data="post_city_select_all"
+        )
+        
+        # Города с чекбоксами
         for city in cities:
             is_selected = city in selected_cities
             checkbox = "⭐️" if is_selected else ""
-            text = f"{city} {checkbox}"
+            text = f"{city} {checkbox}".strip()
             builder.button(text=text, callback_data=f"{prefix}{city}")
         
+        # Располагаем по 2 в ряд
         builder.adjust(2)
         
-        # Добавляем специальные кнопки для постов
-        special_buttons = []
-        
-        # Кнопка "Выбрать все города"
-        special_buttons.append(
-            InlineKeyboardButton(
-                text="Выбрать все", 
-                callback_data="post_city_select_all"
-            )
-        )
-        
-        # Кнопка подтверждения (только если есть выбранные города)
-        if selected_cities:
-            special_buttons.append(
+        # Кнопки "Подтвердить" и "Отменить" — каждая на отдельной строке
+        if selected_cities:  # Только если есть выбранные города
+            builder.row(
                 InlineKeyboardButton(
                     text="Подтвердить ✓", 
                     callback_data="post_city_confirm"
                 )
             )
-        
-        # Кнопка отмены
-        special_buttons.append(
+        builder.row(
             InlineKeyboardButton(
                 text="Отменить ×", 
                 callback_data="cancel_post"
             )
         )
-        
-        builder.row(*special_buttons)
     else:
         # Для выбора города пользователя (одиночный выбор)
         for city in cities:
