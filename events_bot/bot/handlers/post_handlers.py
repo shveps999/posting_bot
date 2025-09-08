@@ -166,16 +166,15 @@ async def confirm_city_selection(callback: CallbackQuery, state: FSMContext, db)
 
 @router.callback_query(PostStates.waiting_for_city_selection, F.data.startswith("post_city_"))
 async def process_post_city_selection(callback: CallbackQuery, state: FSMContext, db):
-    """Обработка выбора города для поста"""
-    city = callback.data[10:]  # Убираем префикс "post_city_"
+    city_name = callback.data[10:]  # Убираем "post_city_"
     
     data = await state.get_data()
-    selected_cities = data.get('selected_cities', [])
+    selected_cities = data.get("selected_cities", [])
     
-    if city in selected_cities:
-        selected_cities.remove(city)
+    if city_name in selected_cities:
+        selected_cities.remove(city_name)
     else:
-        selected_cities.append(city)
+        selected_cities.append(city_name)
     
     await state.update_data(selected_cities=selected_cities)
     
