@@ -27,7 +27,6 @@ class UserService:
 
     @staticmethod
     async def select_cities(db: AsyncSession, user_id: int, city_names: List[str]) -> User:
-        """Сохранить выбранные города пользователя"""
         result = await db.execute(select(User).where(User.id == user_id))
         user = result.scalar_one()
         result = await db.execute(select(City).where(City.name.in_(city_names)))
