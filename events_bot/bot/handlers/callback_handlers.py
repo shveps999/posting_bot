@@ -11,6 +11,11 @@ import logfire
 router = Router()
 
 
+def register_callback_handlers(dp: Router):
+    """Регистрация обработчиков callback"""
+    dp.include_router(router)
+
+
 @router.callback_query(F.data.startswith("category_"))
 async def process_category_selection(callback: CallbackQuery, state: FSMContext, db):
     category_id = int(callback.data.split("_")[1])
@@ -69,5 +74,5 @@ async def confirm_categories_selection(callback: CallbackQuery, state: FSMContex
         "Выберите действие:",
         reply_markup=get_main_keyboard()
     )
-    # Убрано: await state.clear()
+    # Не вызываем state.clear()
     await callback.answer()
