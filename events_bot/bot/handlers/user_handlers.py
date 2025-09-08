@@ -178,18 +178,25 @@ async def cmd_help(message: Message):
 
 @router.callback_query(F.data.startswith("city_"))
 async def process_city_selection_callback(callback: CallbackQuery, state: FSMContext, db):
-    city_name = callback.data[5:]
+    city_name = callback.data[5:]  # Убираем "city_"
+    
+    # Получаем текущий выбор из состояния
     data = await state.get_data()
     selected_cities = data.get("selected_cities", [])
-
+    
+    # Переключаем выбор
     if city_name in selected_cities:
         selected_cities.remove(city_name)
     else:
         selected_cities.append(city_name)
-
+    
+    # Сохраняем обновлённый список
     await state.update_data(selected_cities=selected_cities)
 
-    # Используем безопасное редактирование
+    # Логируем для отладки
+    logfire.info(f"Город {city_name} -> выбранные: {selected_cities}")
+
+    # Обновляем клавиатуру
     await safe_edit_message(
         message=callback.message,
         text="Выберите университеты:",
