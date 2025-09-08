@@ -103,13 +103,15 @@ async def show_city_selection(message: Message, db):
 
 
 async def show_main_menu(message: Message):
-    """Отправить главное меню — только гифка без текста"""
+    """Отправить главное меню — гифка с подписью и кнопками"""
     if MAIN_MENU_GIF_IDS:
         selected_gif = random.choice(MAIN_MENU_GIF_IDS)
         try:
+            # ✅ Отправляем гифку с подписью и клавиатурой
             await message.answer_animation(
                 animation=selected_gif,
-                # Никакого caption — только гифка
+                caption="✨ Выберите действие:",  # Можно оставить пустым
+                parse_mode="HTML",
                 reply_markup=get_main_keyboard()
             )
             return
