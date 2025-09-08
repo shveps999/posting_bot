@@ -19,34 +19,31 @@ def get_city_keyboard(for_post: bool = False, selected_cities: list = None) -> I
     prefix = "post_city_" if for_post else "city_"
     
     if for_post:
-        # Добавляем кнопки городов и "Выбрать все" в сетку 2xN
-        all_cities_selected = len(selected_cities) == len(cities)
-        
-        # Кнопка "Выбрать все" с чекбоксом
-        select_all_text = f"Выбрать все ⭐️" if all_cities_selected else "Выбрать все"
-        builder.button(
-            text=select_all_text,
-            callback_data="post_city_select_all"
-        )
-        
-        # Города с чекбоксами
+        # Добавляем все города с чекбоксами
         for city in cities:
             is_selected = city in selected_cities
             checkbox = "⭐️" if is_selected else ""
             text = f"{city} {checkbox}".strip()
             builder.button(text=text, callback_data=f"{prefix}{city}")
         
-        # Располагаем по 2 в ряд
+        # Кнопка "Выбрать все" — последняя в сетке
+        all_cities_selected = len(selected_cities) == len(cities)
+        select_all_text = f"Выбрать все ⭐️" if all_cities_selected else "Выбрать все"
+        builder.button(
+            text=select_all_text,
+            callback_data="post_city_select_all"
+        )
+        
+        # Располагаем все кнопки (города + "Выбрать все") по 2 в ряд
         builder.adjust(2)
         
-        # Кнопки "Подтвердить" и "Отменить" — каждая на отдельной строке
-        if selected_cities:  # Только если есть выбранные города
-            builder.row(
-                InlineKeyboardButton(
-                    text="Подтвердить ✓", 
-                    callback_data="post_city_confirm"
-                )
+        # Кнопки "Подтвердить" и "Отменить" — каждая на своей строке, всегда видны
+        builder.row(
+            InlineKeyboardButton(
+                text="Подтвердить ✓", 
+                callback_data="post_city_confirm"
             )
+        )
         builder.row(
             InlineKeyboardButton(
                 text="Отменить ×", 
