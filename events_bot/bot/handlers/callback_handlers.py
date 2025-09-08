@@ -5,6 +5,7 @@ from events_bot.database.services import UserService, CategoryService
 from events_bot.bot.states import UserStates
 from events_bot.bot.keyboards import get_category_selection_keyboard, get_main_keyboard
 from events_bot.bot.handlers.start_handler import MAIN_MENU_GIF_IDS
+import random
 
 router = Router()
 
