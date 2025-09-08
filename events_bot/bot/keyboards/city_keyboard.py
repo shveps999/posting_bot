@@ -25,7 +25,7 @@ def get_city_keyboard(for_post: bool = False, selected_cities: list = None) -> I
             text = f"{city} {checkbox}"
             builder.button(text=text, callback_data=f"{prefix}{city}")
         
-        builder.adjust(3)
+        builder.adjust(2)
         
         # Добавляем специальные кнопки для постов
         special_buttons = []
@@ -33,7 +33,7 @@ def get_city_keyboard(for_post: bool = False, selected_cities: list = None) -> I
         # Кнопка "Выбрать все города"
         special_buttons.append(
             InlineKeyboardButton(
-                text="🌍 Выбрать все города", 
+                text="Выбрать все", 
                 callback_data="post_city_select_all"
             )
         )
@@ -42,7 +42,7 @@ def get_city_keyboard(for_post: bool = False, selected_cities: list = None) -> I
         if selected_cities:
             special_buttons.append(
                 InlineKeyboardButton(
-                    text="✅ Подтвердить", 
+                    text="Подтвердить ✓", 
                     callback_data="post_city_confirm"
                 )
             )
@@ -50,7 +50,7 @@ def get_city_keyboard(for_post: bool = False, selected_cities: list = None) -> I
         # Кнопка отмены
         special_buttons.append(
             InlineKeyboardButton(
-                text="❌ Отмена", 
+                text="Отменить ×", 
                 callback_data="cancel_post"
             )
         )
