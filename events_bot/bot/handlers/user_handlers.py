@@ -5,6 +5,7 @@ from events_bot.database.services import UserService, CategoryService, PostServi
 from events_bot.bot.states import UserStates
 from events_bot.bot.keyboards import get_main_keyboard, get_category_selection_keyboard, get_city_keyboard
 from events_bot.utils import get_clean_category_string
+from events_bot.utils.telegram import safe_edit_message
 from events_bot.bot.keyboards.notification_keyboard import get_post_notification_keyboard
 from events_bot.bot.handlers.feed_handlers import show_liked_page_from_animation, format_liked_list
 from events_bot.bot.keyboards.feed_keyboard import get_liked_list_keyboard
@@ -188,14 +189,13 @@ async def process_city_selection_callback(callback: CallbackQuery, state: FSMCon
 
     await state.update_data(selected_cities=selected_cities)
 
-    try:
-        await callback.message.edit_text(
-            callback.message.text or "Выберите университеты:",
-            reply_markup=get_city_keyboard(selected_cities=selected_cities)
-        )
-    except Exception as e:
-        logfire.error(f"Не удалось обновить сообщение: {e}")
-
+    # Используем безопасное редактирование
+    await safe_edit_message(
+        message=callback.message,
+        text="Выберите университеты:",
+        reply_markup=get_city_keyboard(selected_cities=selected_cities),
+        parse_mode="HTML"
+    )
     await callback.answer()
 
 
@@ -219,12 +219,14 @@ async def confirm_cities(callback: CallbackQuery, state: FSMContext, db):
 
     categories = await CategoryService.get_all_categories(db)
     try:
-        await callback.message.edit_text(
+        await callback.message.delete()
+        await callback.message.answer(
             "Теперь выберите категории интересов:",
             reply_markup=get_category_selection_keyboard(categories)
         )
     except Exception as e:
-        logfire.error(f"Ошибка при смене текста: {e}")
+        if "message to delete not found" not in str(e):
+            raise
     await state.set_state(UserStates.waiting_for_categories)
     await callback.answer()
 
