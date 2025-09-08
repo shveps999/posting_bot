@@ -57,8 +57,12 @@ async def cmd_start(message: Message, state: FSMContext, db):
         last_name=message.from_user.last_name,
     )
 
+    # Получаем выбранные города и категории
+    user_cities = await UserService.get_user_cities(db, user.id)
+    user_categories = await UserService.get_user_categories(db, user.id)
+
     # Если пользователь уже настроил профиль — показываем главное меню
-    if user.city and await UserService.get_user_categories(db, message.from_user.id):
+    if user_cities and user_categories:
         await show_main_menu(message)
         return
 
@@ -80,11 +84,11 @@ async def cmd_start(message: Message, state: FSMContext, db):
     # Резерв: без гифки
     await message.answer(
         "Бот поможет быть в курсе актуальных и интересных мероприятий твоего ВУЗа по выбранным категориям интересов. А еще здесь можно создать свое мероприятие. Начнем!\n\n"
-        "Для начала выберите ваш город:",
+        "Для начала выберите ваш университет:",
         reply_markup=get_city_keyboard(),
         parse_mode="HTML"
     )
-    await state.set_state(UserStates.waiting_for_city)
+    await state.set_state(UserStates.waiting_for_cities)
 
 
 async def show_city_selection(message: Message, db):
@@ -93,7 +97,7 @@ async def show_city_selection(message: Message, db):
         await message.edit_caption(
             caption=(
                 "Бот поможет быть в курсе актуальных и интересных мероприятий твоего ВУЗа по выбранным категориям интересов. А еще здесь можно создать свое мероприятие. Начнем!\n\n"
-                "Для начала выберите ваш город:"
+                "Для начала выберите ваш университет:"
             ),
             reply_markup=get_city_keyboard(),
             parse_mode="HTML"
