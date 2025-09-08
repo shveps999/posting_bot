@@ -62,7 +62,7 @@ async def safe_edit_message(message: Message, text: str, reply_markup=None, pars
 
 @router.callback_query(F.data == "confirm_categories")
 async def confirm_categories_selection(callback: CallbackQuery, state: FSMContext, db):
-    """Подтверждение выбора категорий — с гифкой в главном меню"""
+    """Подтверждение выбора категорий — с гифкой и меню в одном сообщении"""
     data = await state.get_data()
     selected_ids = data.get("selected_categories", [])
 
@@ -73,25 +73,22 @@ async def confirm_categories_selection(callback: CallbackQuery, state: FSMContex
     # Сохраняем выбранные категории
     await UserService.select_categories(db, callback.from_user.id, selected_ids)
 
-    # Удаляем текущее сообщение
+    # Удаляем текущее сообщение с выбором категорий
     try:
         await callback.message.delete()
     except Exception as e:
         logfire.warning(f"Не удалось удалить сообщение: {e}")
 
-    # ✅ Отправляем гифку как animation
+    # ✅ Отправляем гифку с подписью и кнопками
     if MAIN_MENU_GIF_IDS:
         selected_gif = random.choice(MAIN_MENU_GIF_IDS)
         try:
-            sent = await callback.bot.send_animation(
-                chat_id=callback.message.chat.id,
+            await callback.message.answer_animation(
                 animation=selected_gif,
-                caption="",  # Пустой caption
-                reply_markup=None  # Без клавиатуры
+                caption="✨ Добро пожаловать в Сердце!\n\nВыберите действие:",
+                parse_mode="HTML",
+                reply_markup=get_main_keyboard()
             )
-            # ✅ Через 0.5 сек — добавляем клавиатуру
-            await asyncio.sleep(0.5)
-            await sent.edit_reply_markup(reply_markup=get_main_keyboard())
         except Exception as e:
             logfire.warning(f"Ошибка отправки гифки: {e}")
             # Резерв: текстовое меню
@@ -107,6 +104,9 @@ async def confirm_categories_selection(callback: CallbackQuery, state: FSMContex
             reply_markup=get_main_keyboard(),
             input_field_placeholder=""
         )
+
+    await state.clear()
+    await callback.answer()
 
     await state.clear()
     await callback.answer()
