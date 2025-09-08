@@ -26,9 +26,9 @@ def get_city_keyboard(for_post: bool = False, selected_cities: list = None) -> I
             text = f"{city} {checkbox}".strip()
             builder.button(text=text, callback_data=f"{prefix}{city}")
         
-        # Кнопка "Выбрать все" — сразу после городов, как последняя в списке
+        # Кнопка "Выбрать все" — сразу после городов, как последняя в сетке
         all_selected = len(selected_cities) == len(cities)
-        select_all_text = f"Выбрать все ⭐️" if all_selected else "Выбрать все"
+        select_all_text = "Выбрать все ⭐️" if all_selected else "Выбрать все"
         builder.button(
             text=select_all_text,
             callback_data="post_city_select_all"
