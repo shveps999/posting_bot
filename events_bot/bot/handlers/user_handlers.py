@@ -168,8 +168,8 @@ async def cmd_my_posts(message: Message, db):
 @router.message(F.text == "/change_university")
 async def cmd_change_city(message: Message, state: FSMContext):
     """Обработчик команды /change_university"""
-    await message.answer("Выберите город для получения уведомлений и подборки:", reply_markup=get_city_keyboard())
-    await state.set_state(UserStates.waiting_for_city)
+    await message.answer("Выберите университеты для получения уведомлений и подборки:", reply_markup=get_city_keyboard())
+    await state.set_state(UserStates.waiting_for_cities)
 
 
 @router.message(F.text == "/change_category")
@@ -224,6 +224,7 @@ async def cmd_help(message: Message):
 
 @router.callback_query(F.data.startswith("city_"))
 async def process_city_selection_callback(callback: CallbackQuery, state: FSMContext, db):
+    """Обработка выбора города через инлайн-кнопку"""
     city_name = callback.data[5:]
     data = await state.get_data()
     selected_cities = data.get("selected_cities", [])
@@ -243,6 +244,7 @@ async def process_city_selection_callback(callback: CallbackQuery, state: FSMCon
 
 @router.callback_query(F.data == "confirm_cities")
 async def confirm_cities(callback: CallbackQuery, state: FSMContext, db):
+    """Подтверждение выбора городов"""
     data = await state.get_data()
     selected_cities = data.get("selected_cities", [])
 
@@ -250,7 +252,6 @@ async def confirm_cities(callback: CallbackQuery, state: FSMContext, db):
         await callback.answer("Выберите хотя бы один университет!")
         return
 
-    # Сохраняем выбранные города
     user = await UserService.register_user(
         db=db,
         telegram_id=callback.from_user.id,
@@ -260,7 +261,6 @@ async def confirm_cities(callback: CallbackQuery, state: FSMContext, db):
     )
     await UserService.select_cities(db, user.id, selected_cities)
 
-    # Переходим к выбору категорий
     categories = await CategoryService.get_all_categories(db)
     try:
         await callback.message.delete()
@@ -281,12 +281,12 @@ async def change_city_callback(callback: CallbackQuery, state: FSMContext):
     try:
         await callback.message.delete()
         await callback.message.answer(
-            "Выберите город для кастомизации уведомлений и подборки:", reply_markup=get_city_keyboard()
+            "Выберите университеты для кастомизации уведомлений и подборки:", reply_markup=get_city_keyboard()
         )
     except Exception as e:
         if "message is not modified" not in str(e):
             raise
-    await state.set_state(UserStates.waiting_for_city)
+    await state.set_state(UserStates.waiting_for_cities)
     await callback.answer()
 
 
