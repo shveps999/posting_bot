@@ -100,25 +100,40 @@ async def cancel_post_creation(callback: CallbackQuery, state: FSMContext, db):
 
 @router.callback_query(PostStates.waiting_for_city_selection, F.data == "post_city_select_all")
 async def select_all_cities(callback: CallbackQuery, state: FSMContext, db):
-    """Выбрать все университеты для поста"""
-    logfire.info(f"Нажата кнопка 'Выбрать все' пользователем {callback.from_user.id}")
-    
+    """Переключение: выбрать все / снять все университеты"""
     all_cities = [
         "УрФУ", "УГМУ", "УрГЭУ", "УрГПУ",
         "УрГЮУ", "УГГУ", "УрГУПС", "УрГАХУ",
         "УрГАУ", "РГППУ", "РАНХиГС"
     ]
 
-    await state.update_data(selected_cities=all_cities)
+    # Получаем текущий выбор
+    data = await state.get_data()
+    selected_cities = data.get('selected_cities', [])
 
+    # Определяем новое состояние
+    if len(selected_cities) == len(all_cities):
+        # Все выбраны → снимаем всё
+        new_selection = []
+        await callback.answer("🗙 Все университеты сняты")
+    else:
+        # Не все выбраны → выбираем всё
+        new_selection = all_cities
+        await callback.answer("✅ Все университеты выбраны!")
+
+    # Сохраняем новое состояние
+    await state.update_data(selected_cities=new_selection)
+
+    # Обновляем клавиатуру
     try:
         await callback.message.edit_reply_markup(
-            reply_markup=get_city_keyboard(for_post=True, selected_cities=all_cities)
+            reply_markup=get_city_keyboard(for_post=True, selected_cities=new_selection)
         )
-        await callback.answer("✅ Все университеты выбраны!")
     except Exception as e:
-        logfire.error(f"Ошибка обновления клавиатуры: {e}")
-        await callback.answer("❌ Ошибка интерфейса")
+        if "message is not modified" not in str(e):
+            logfire.error(f"Ошибка обновления клавиатуры: {e}")
+            await callback.answer("❌ Ошибка интерфейса")
+        # Игнорируем "message is not modified" — это нормально
 
 
 @router.callback_query(PostStates.waiting_for_city_selection, F.data == "post_city_confirm")
