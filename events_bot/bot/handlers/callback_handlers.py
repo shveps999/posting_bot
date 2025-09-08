@@ -6,6 +6,8 @@ from events_bot.bot.states import UserStates
 from events_bot.bot.keyboards import get_category_selection_keyboard, get_main_keyboard
 from events_bot.bot.handlers.start_handler import MAIN_MENU_GIF_IDS
 import random
+import asyncio
+import logfire
 
 router = Router()
 
@@ -71,19 +73,19 @@ async def confirm_categories_selection(callback: CallbackQuery, state: FSMContex
     # Сохраняем выбранные категории
     await UserService.select_categories(db, callback.from_user.id, selected_ids)
 
-    # Удаляем текущее сообщение (с выбором категорий)
+    # Удаляем текущее сообщение
     try:
         await callback.message.delete()
     except Exception as e:
         logfire.warning(f"Не удалось удалить сообщение: {e}")
 
-    # ✅ Отправляем гифку как photo (без клавиатуры)
+    # ✅ Отправляем гифку как animation
     if MAIN_MENU_GIF_IDS:
         selected_gif = random.choice(MAIN_MENU_GIF_IDS)
         try:
-            sent = await callback.bot.send_photo(
+            sent = await callback.bot.send_animation(
                 chat_id=callback.message.chat.id,
-                photo=selected_gif,
+                animation=selected_gif,
                 caption="",  # Пустой caption
                 reply_markup=None  # Без клавиатуры
             )
