@@ -1,8 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, delete, insert
+from sqlalchemy import select, delete, insert
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
-from ..models import User, City, Category, user_cities
+from ..models import User, City, user_cities
 
 
 class UserRepository:
@@ -49,14 +49,13 @@ class UserRepository:
     @staticmethod
     async def select_categories(db: AsyncSession, user_id: int, category_ids: list):
         """Сохранить выбранные категории пользователя"""
-        # Удаляем старые связи
         await db.execute(
             delete(user_categories).where(user_categories.c.user_id == user_id)
         )
-        # Добавляем новые
-        for category_id in category_ids:
+        if category_ids:
+            values = [{"user_id": user_id, "category_id": category_id} for category_id in category_ids]
             await db.execute(
-                insert(user_categories).values(user_id=user_id, category_id=category_id)
+                insert(user_categories).values(values)
             )
 
     @staticmethod
@@ -72,11 +71,9 @@ class UserRepository:
     @staticmethod
     async def select_cities(db: AsyncSession, user_id: int, city_names: list[str]):
         """Сохранить выбранные университеты пользователя"""
-        # Удаляем старые связи
         await db.execute(
             user_cities.delete().where(user_cities.c.user_id == user_id)
         )
-        # Добавляем новые
         cities = await db.execute(
             select(City).where(City.name.in_(city_names))
         )
