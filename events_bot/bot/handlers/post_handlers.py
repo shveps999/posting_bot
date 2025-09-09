@@ -98,8 +98,7 @@ async def confirm_post_cities(callback: CallbackQuery, state: FSMContext):
     try:
         await callback.message.delete()
         await callback.message.answer(
-            f"📍 Выбраны города: {', '.join(selected_cities)}
-"
+            f"📍 Выбраны города: {', '.join(selected_cities)}\n"
             "Теперь выберите категории мероприятия:",
             reply_markup=get_category_selection_keyboard(categories, for_post=True),
         )
@@ -180,16 +179,11 @@ async def process_post_title(message: Message, state: FSMContext):
     await state.update_data(title=title)
     
     await message.answer(
-        "📄 Введите описание мероприятия (до 2000 символов):
-"
-        "Вы можете использовать следующие элементы форматирования:
-"
-        "• <b>жирный текст</b>
-"
-        "• <i>курсив</i>
-"
-        "• <u>подчеркнутый</u>
-"
+        "📄 Введите описание мероприятия (до 2000 символов):\n"
+        "Вы можете использовать следующие элементы форматирования:\n"
+        "• <b>жирный текст</b>\n"
+        "• <i>курсив</i>\n"
+        "• <u>подчеркнутый</u>\n"
         "• <s>зачеркнутый</s>",
         parse_mode="HTML"
     )
@@ -215,7 +209,7 @@ async def process_post_content(message: Message, state: FSMContext):
     await state.set_state(PostStates.waiting_for_image)
 
 @router.callback_query(F.data == "skip_image")
-async def skip_image(callback: CallbackQuery):
+async def skip_image(callback: CallbackQuery, state: FSMContext):
     """Пропустить добавление изображения"""
     try:
         await callback.message.delete()
@@ -226,12 +220,7 @@ async def skip_image(callback: CallbackQuery):
         if "message is not modified" not in str(e):
             raise
     
-    # Здесь мы должны получить state, но у нас его нет в callback
-    # Поэтому используем другой подход - устанавливаем состояние через FSMContext
-    from aiogram.fsm.context import FSMContext
-    state = FSMContext(callback.bot.storage, callback.from_user.id, callback.from_user.id)
     await state.set_state(PostStates.waiting_for_address)
-    
     await callback.answer()
 
 @router.message(PostStates.waiting_for_image)
@@ -265,8 +254,7 @@ async def process_post_address(message: Message, state: FSMContext):
     await state.update_data(address=address)
     
     await message.answer(
-        "🌐 Введите ссылку на мероприятие (необязательно):
-"
+        "🌐 Введите ссылку на мероприятие (необязательно):\n"
         "Например: https://example.com"
     )
     
@@ -289,8 +277,7 @@ async def process_post_url(message: Message, state: FSMContext):
     await state.update_data(url=url)
     
     await message.answer(
-        "📅 Введите дату и время проведения мероприятия в формате ДД.ММ.ГГГГ ЧЧ:ММ (необязательно):
-"
+        "📅 Введите дату и время проведения мероприятия в формате ДД.ММ.ГГГГ ЧЧ:ММ (необязательно):\n"
         "Например: 25.12.2024 15:30"
     )
     
@@ -307,10 +294,8 @@ async def process_post_event_datetime(message: Message, state: FSMContext, db):
             event_at = datetime.strptime(event_at_str, "%d.%m.%Y %H:%M")
         except ValueError:
             await message.answer(
-                "❌ Неверный формат даты. Используйте ДД.ММ.ГГГГ ЧЧ:ММ
-"
-                "Например: 25.12.2024 15:30
-"
+                "❌ Неверный формат даты. Используйте ДД.ММ.ГГГГ ЧЧ:ММ\n"
+                "Например: 25.12.2024 15:30\n"
                 "Или отправьте /skip чтобы пропустить"
             )
             return
@@ -333,8 +318,7 @@ async def process_post_event_datetime(message: Message, state: FSMContext, db):
     )
     
     await message.answer(
-        "✅ Мероприятие отправлено на модерацию!
-"
+        "✅ Мероприятие отправлено на модерацию!\n"
         "После одобрения вы получите уведомление.",
         reply_markup=get_main_keyboard()
     )
