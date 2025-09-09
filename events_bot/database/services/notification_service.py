@@ -9,29 +9,43 @@ from ...bot.keyboards.notification_keyboard import get_post_notification_keyboar
 from ...storage import file_storage
 from aiogram import Bot
 
-
 class NotificationService:
+    """Асинхронный сервис для работы с уведомлениями"""
+    
     @staticmethod
     async def get_users_to_notify(db: AsyncSession, post: Post) -> List[User]:
+        """Получить пользователей для уведомления о новом посте"""
         await db.refresh(post, attribute_names=["author", "categories"])
+        
+        # Получаем города поста
+        try:
+            post_cities = json.loads(post.cities) if post.cities else []
+        except (json.JSONDecodeError, TypeError):
+            post_cities = []
+            
         category_ids = [cat.id for cat in post.categories]
-        post_city = getattr(post, "city", None)
-        if not post_city:
-            return []
-        return await UserRepository.get_users_by_categories_and_cities(
-            db, category_ids, [post_city]
+        logfire.info(
+            f"Ищем пользователей для уведомления: города={post_cities}, категории={category_ids}"
         )
-
+        users = await UserRepository.get_users_by_city_and_categories(
+            db, post_cities, category_ids
+        )
+        logfire.info(
+            f"Найдено {len(users)} пользователей для уведомления (включая автора)"
+        )
+        return users
+    
     @staticmethod
     def format_post_notification(post: Post) -> str:
+        """Форматировать уведомление о посте"""
         category_str = get_clean_category_string(
             post.categories if hasattr(post, "categories") else None
         )
         event_at = getattr(post, "event_at", None)
         event_str = event_at.strftime("%d.%m.%Y %H:%M") if event_at else ""
+        # ✅ Добавлены переменные
         post_city = getattr(post, "city", "Не указан")
         address = getattr(post, "address", "Не указан")
-
         lines = [
             f"⭐️ <i>{category_str}</i>",
             "",
@@ -42,21 +56,20 @@ class NotificationService:
         lines.append(f"<i>📍 {post_city}, {address}</i>")
         lines.append("")
         lines.append(f"{post.content}")
-
         return "\n".join(lines)
-
+    
     @staticmethod
     async def send_post_notification(bot: Bot, post: Post, users: List[User], db: AsyncSession) -> None:
+        """Отправить уведомления о новом посте"""
         logfire.info(f"Отправляем уведомления о посте {post.id} {len(users)} пользователям")
         await db.refresh(post, attribute_names=["author", "categories"])
         notification_text = NotificationService.format_post_notification(post)
         post_url = getattr(post, "url", None)
-
         success_count = 0
         error_count = 0
-
         for user in users:
             try:
+                logfire.debug(f"Отправляем уведомление пользователю {user.id}")
                 is_liked = await db.scalar(
                     select(Like.id).where(Like.user_id == user.id, Like.post_id == post.id)
                 ) is not None
@@ -93,5 +106,4 @@ class NotificationService:
             except Exception as e:
                 logfire.warning(f"Ошибка отправки уведомления пользователю {user.id}: {e}")
                 error_count += 1
-
         logfire.info(f"Уведомления отправлены: успех={success_count}, ошибок={error_count}")
