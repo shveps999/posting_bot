@@ -3,13 +3,15 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from events_bot.database.base import Base
 
-# Связь many-to-many между User и City
+
+# Таблица many-to-many: пользователь — университет
 user_cities = Table(
     "user_cities",
     Base.metadata,
     Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
     Column("city_id", Integer, ForeignKey("cities.id"), primary_key=True),
 )
+
 
 class User(Base):
     __tablename__ = "users"
@@ -18,13 +20,13 @@ class User(Base):
     username = Column(String)
     first_name = Column(String)
     last_name = Column(String)
-    city = Column(String)  # legacy, можно убрать
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Связь с городами
+    # Связь с университетами
     cities = relationship("City", secondary=user_cities, back_populates="users")
+
 
 class City(Base):
     __tablename__ = "cities"
@@ -34,7 +36,9 @@ class City(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+    # Связь с пользователями
     users = relationship("User", secondary=user_cities, back_populates="cities")
+
 
 class Category(Base):
     __tablename__ = "categories"
@@ -47,6 +51,7 @@ class Category(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+
 class Post(Base):
     __tablename__ = "posts"
 
@@ -54,7 +59,7 @@ class Post(Base):
     title = Column(String, nullable=False)
     content = Column(String, nullable=False)
     author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    city = Column(String)  # Город или университет
+    city = Column(String)  # может быть устаревшим, но для совместимости
     image_id = Column(String)
     event_at = Column(DateTime(timezone=True))
     url = Column(String)
@@ -65,6 +70,7 @@ class Post(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+
 class Like(Base):
     __tablename__ = "likes"
 
@@ -72,6 +78,7 @@ class Like(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     post_id = Column(Integer, ForeignKey("posts.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
 
 class ModerationRecord(Base):
     __tablename__ = "moderation_records"
