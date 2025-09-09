@@ -207,10 +207,14 @@ async def process_user_city_selection(callback: CallbackQuery, state: FSMContext
         
     await state.update_data(selected_cities=selected_cities)
     
-    # Обновляем клавиатуру
-    await callback.message.edit_reply_markup(
-        reply_markup=get_city_keyboard(for_user=True, selected_cities=selected_cities)
-    )
+    # Обновляем клавиатуру с обработкой ошибки "message is not modified"
+    try:
+        await callback.message.edit_reply_markup(
+            reply_markup=get_city_keyboard(for_user=True, selected_cities=selected_cities)
+        )
+    except Exception as e:
+        if "message is not modified" not in str(e):
+            raise
     
     await callback.answer()
 
@@ -225,10 +229,14 @@ async def select_all_user_cities(callback: CallbackQuery, state: FSMContext):
     
     await state.update_data(selected_cities=cities)
     
-    # Обновляем клавиатуру
-    await callback.message.edit_reply_markup(
-        reply_markup=get_city_keyboard(for_user=True, selected_cities=cities)
-    )
+    # Обновляем клавиатуру с обработкой ошибки "message is not modified"
+    try:
+        await callback.message.edit_reply_markup(
+            reply_markup=get_city_keyboard(for_user=True, selected_cities=cities)
+        )
+    except Exception as e:
+        if "message is not modified" not in str(e):
+            raise
     
     await callback.answer()
 
