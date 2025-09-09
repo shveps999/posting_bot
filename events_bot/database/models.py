@@ -11,6 +11,14 @@ user_cities = Table(
     Column("city_id", Integer, ForeignKey("cities.id"), primary_key=True),
 )
 
+# Таблица many-to-many: пользователь — категория
+user_categories = Table(
+    "user_categories",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
+    Column("category_id", Integer, ForeignKey("categories.id"), primary_key=True),
+)
+
 # Таблица many-to-many: пост — категория
 post_categories = Table(
     "post_categories",
@@ -31,6 +39,7 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     cities = relationship("City", secondary=user_cities, back_populates="users")
+    categories = relationship("Category", secondary=user_categories, back_populates="users")
 
 class City(Base):
     __tablename__ = "cities"
@@ -52,6 +61,8 @@ class Category(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    users = relationship("User", secondary=user_categories, back_populates="categories")
 
 class Post(Base):
     __tablename__ = "posts"
