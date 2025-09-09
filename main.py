@@ -79,7 +79,7 @@ async def main():
 
     # === ГЛОБАЛЬНЫЙ ОБРАБОТЧИК ВСЕХ CALLBACK_QUERY ===
     @dp.callback_query()
-    async def catch_all_callbacks(callback: types.CallbackQuery, handler, data):
+    async def catch_all_callbacks(callback: types.CallbackQuery, data: dict):
         logfire.warning(f"🚨 ПОЙМАН callback: data='{callback.data}' от @{callback.from_user.username} ({callback.from_user.id})")
         try:
             await callback.answer()
