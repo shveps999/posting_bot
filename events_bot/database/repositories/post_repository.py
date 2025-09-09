@@ -2,8 +2,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func, insert, or_, delete
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
-from datetime import datetime
-from ..models import Post, ModerationRecord, ModerationAction, Category, post_categories
+from datetime import datetime, timezone
+from ..models import Post, ModerationRecord, Category, post_categories
 from ..models import User, Like
 
 
@@ -103,7 +103,7 @@ class PostRepository:
             moderation_record = ModerationRecord(
                 post_id=post_id,
                 moderator_id=moderator_id,
-                action=ModerationAction.APPROVE.value,
+                action=1,  # APPROVE
                 comment=comment,
             )
             db.add(moderation_record)
@@ -123,7 +123,7 @@ class PostRepository:
             moderation_record = ModerationRecord(
                 post_id=post_id,
                 moderator_id=moderator_id,
-                action=ModerationAction.REJECT.value,
+                action=2,  # REJECT
                 comment=comment,
             )
             db.add(moderation_record)
@@ -141,7 +141,7 @@ class PostRepository:
             moderation_record = ModerationRecord(
                 post_id=post_id,
                 moderator_id=moderator_id,
-                action=ModerationAction.REQUEST_CHANGES.value,
+                action=3,  # REQUEST_CHANGES
                 comment=comment,
             )
             db.add(moderation_record)
@@ -242,7 +242,6 @@ class PostRepository:
     async def get_liked_posts(
         db: AsyncSession, user_id: int, limit: int = 10, offset: int = 0
     ) -> List[Post]:
-        from ..models import Like
         result = await db.execute(
             select(Post)
             .join(Like, Like.post_id == Post.id)
@@ -263,7 +262,6 @@ class PostRepository:
 
     @staticmethod
     async def get_liked_posts_count(db: AsyncSession, user_id: int) -> int:
-        from ..models import Like
         result = await db.execute(
             select(func.count(Post.id))
             .join(Like, Like.post_id == Post.id)
@@ -280,7 +278,6 @@ class PostRepository:
 
     @staticmethod
     async def delete_expired_posts(db: AsyncSession) -> int:
-        from ..models import Like, ModerationRecord
         current_utc = datetime.now(timezone.utc).replace(tzinfo=None)
         expired_posts = await db.execute(
             select(Post.id).where(
@@ -317,7 +314,6 @@ class PostRepository:
     @staticmethod
     async def delete_post(db: AsyncSession, post_id: int) -> bool:
         """Полное удаление поста по ID"""
-        from ..models import Like, ModerationRecord
         # Удаляем лайки
         await db.execute(delete(Like).where(Like.post_id == post_id))
         # Удаляем записи модерации
