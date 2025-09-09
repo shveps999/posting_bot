@@ -8,6 +8,9 @@ import logfire
 
 router = Router()
 
+# Добавляем константу POSTS_PER_PAGE
+POSTS_PER_PAGE = 5
+
 def register_start_handlers(dp: Router):
     """Регистрация обработчиков стартового экрана"""
     dp.include_router(router)
