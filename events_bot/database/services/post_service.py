@@ -1,4 +1,4 @@
-rom typing import List, Optional
+from typing import List, Optional
 import logfire
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
