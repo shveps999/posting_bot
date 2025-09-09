@@ -5,7 +5,6 @@ from events_bot.database.services import UserService, CategoryService, PostServi
 from events_bot.bot.states import UserStates
 from events_bot.bot.keyboards import get_main_keyboard, get_category_selection_keyboard, get_city_keyboard
 from events_bot.utils import get_clean_category_string
-from events_bot.utils.telegram import safe_edit_message
 from events_bot.bot.keyboards.notification_keyboard import get_post_notification_keyboard
 from events_bot.bot.handlers.feed_handlers import show_liked_page_from_animation, format_liked_list
 from events_bot.bot.keyboards.feed_keyboard import get_liked_list_keyboard
@@ -13,16 +12,42 @@ import logfire
 import os
 import random
 
+# Гифки
 LIKED_GIF_ID = os.getenv("LIKED_GIF_ID")
 
 router = Router()
 
+@router.callback_query(F.data.startswith("notify_heart_"))
+async def handle_notify_heart(callback: CallbackQuery, db):
+    """Обработка нажатия на 'В избранное' в уведомлении"""
+    try:
+        post_id = int(callback.data.split("notify_heart_")[1])
+        user_id = callback.from_user.id
+        # Переключаем лайк
+        result = await LikeService.toggle_like(db, user_id, post_id)
+        is_liked = result["action"] == "added"
+        # Получаем URL поста
+        post = await PostService.get_post_by_id(db, post_id)
+        post_url = getattr(post, "url", None)
+        # Обновляем клавиатуру
+        new_keyboard = get_post_notification_keyboard(
+            post_id=post_id,
+            is_liked=is_liked,
+            url=post_url
+        )
+        await callback.message.edit_reply_markup(reply_markup=new_keyboard)
+        # Ответ пользователю
+        action_text = "добавлено" if is_liked else "удалено"
+        await callback.answer(f"Избранное {action_text}", show_alert=True)
+    except Exception as e:
+        await callback.answer("❌ Ошибка при изменении избранного", show_alert=True)
 
 @router.message(F.text == "/delete_user")
 async def cmd_delete_user(message: Message, db):
+    """Удаление пользователя и всех его данных"""
     user_id = message.from_user.id
     logfire.info(f"Пользователь {user_id} запросил удаление аккаунта")
-
+    # Проверяем, существует ли пользователь
     user = await UserService.register_user(
         db=db,
         telegram_id=user_id,
@@ -33,26 +58,28 @@ async def cmd_delete_user(message: Message, db):
     if not user:
         await message.answer("❌ Ваш аккаунт уже удалён или не существует.")
         return
-
+    # Удаляем пользователя
     success = await UserService.delete_user(db, user_id)
     if success:
         await message.answer(
-            "✅ Ваш аккаунт и все связанные данные (посты, лайки) успешно удалены.\n\n"
+            "✅ Ваш аккаунт и все связанные данные (посты, лайки) успешно удалены.
+"
             "Если захотите вернуться — просто начните сначала командой /start",
             reply_markup=get_main_keyboard()
         )
     else:
         await message.answer("❌ Ошибка при удалении аккаунта. Попробуйте позже.")
 
-
 @router.message(F.text == "/liked_posts")
 async def cmd_liked_posts(message: Message, db):
+    """Обработчик команды /liked_posts — открытие избранного"""
     logfire.info(f"Пользователь {message.from_user.id} открывает избранное через команду")
+    # Удаляем команду
     try:
         await message.delete()
     except Exception:
         pass
-
+    # Показываем гифку "загрузка"
     if LIKED_GIF_ID:
         try:
             sent = await message.answer_animation(
@@ -64,248 +91,207 @@ async def cmd_liked_posts(message: Message, db):
             return
         except Exception as e:
             logfire.warning(f"Ошибка отправки гифки избранного: {e}")
-
+    # Резервный вариант — без гифки
     await show_liked_page_cmd(message, 0, db, user_id=message.from_user.id)
 
-
 async def show_liked_page_cmd(message: Message, page: int, db, user_id: int):
+    """Показать страницу избранного (через Message)"""
     posts = await PostService.get_liked_posts(db, user_id, POSTS_PER_PAGE, page * POSTS_PER_PAGE)
     if not posts:
         await message.answer(
-            "У вас пока нет избранных мероприятий\n\n"
-            "Чтобы добавить:\n"
-            "• Выберите событие в подборке\n"
-            "• Перейдите в подробнее события\n"
+            "У вас пока нет избранных мероприятий
+"
+            "Чтобы добавить:
+"
+            "• Выберите событие в подборке
+"
+            "• Перейдите в подробнее события
+"
             "• Нажмите «В избранное» под постом",
             reply_markup=get_main_keyboard(),
             parse_mode="HTML"
         )
         return
-
     total_posts = await PostService.get_liked_posts_count(db, user_id)
     total_pages = (total_posts + POSTS_PER_PAGE - 1) // POSTS_PER_PAGE
     start_index = page * POSTS_PER_PAGE + 1
     text = format_liked_list(posts, start_index, total_posts)
-
     await message.answer(
         text,
         reply_markup=get_liked_list_keyboard(posts, page, total_pages, start_index=start_index),
         parse_mode="HTML"
     )
 
-
 def register_user_handlers(dp: Router):
+    """Регистрация обработчиков пользователя"""
     dp.include_router(router)
-
 
 @router.message(F.text == "/my_posts")
 async def cmd_my_posts(message: Message, db):
+    """Обработчик команды /my_posts"""
     posts = await PostService.get_user_posts(db, message.from_user.id)
     if not posts:
-        await message.answer("📭 У вас пока нет постов.", reply_markup=get_main_keyboard())
+        await message.answer(
+            "📭 У вас пока нет постов.", reply_markup=get_main_keyboard()
+        )
         return
-
-    response = "📊 Ваши посты:\n\n"
+    response = "📊 Ваши посты:
+"
     for post in posts:
         await db.refresh(post, attribute_names=["categories"])
         status = "✅ Одобрен" if post.is_approved else "⏳ На модерации"
         category_str = get_clean_category_string(post.categories)
         post_city = getattr(post, "city", "Не указан")
-        response += f"📝 {post.title}\n"
-        response += f"🏙️ {post_city}\n"
-        response += f"📂 {category_str}\n"
-        response += f"📅 {post.created_at.strftime('%d.%m.%Y %H:%M')}\n"
-        response += f"📊 {status}\n\n"
-
+        response += f"📝 {post.title}
+"
+        response += f"🏙️ {post_city}
+"
+        response += f"📂 {category_str}
+"
+        response += f"📅 {post.created_at.strftime('%d.%m.%Y %H:%M')}
+"
+        response += f"📊 {status}
+"
     await message.answer(response, reply_markup=get_main_keyboard())
-
 
 @router.message(F.text == "/change_university")
 async def cmd_change_city(message: Message, state: FSMContext, db):
-    user = await UserService.register_user(
-        db=db,
-        telegram_id=message.from_user.id,
-        username=message.from_user.username,
-        first_name=message.from_user.first_name,
-        last_name=message.from_user.last_name,
-    )
-    user_cities = await UserService.get_user_cities(db, user.id)
-    selected_cities = [c.name for c in user_cities] if user_cities else []
-
-    await state.update_data(selected_cities=selected_cities)
-
+    """Обработчик команды /change_university"""
+    # Получаем текущие города пользователя
+    current_cities = await UserService.get_user_cities(db, message.from_user.id)
     await message.answer(
-        "Выберите университеты для получения уведомлений и подборки:",
-        reply_markup=get_city_keyboard(selected_cities=selected_cities)
+        "Выберите города для получения уведомлений и подборки:", 
+        reply_markup=get_city_keyboard(for_user=True, selected_cities=current_cities)
     )
     await state.set_state(UserStates.waiting_for_cities)
 
-
 @router.message(F.text == "/change_category")
 async def cmd_change_category(message: Message, state: FSMContext, db):
+    """Обработчик команды /change_category"""
     categories = await CategoryService.get_all_categories(db)
     user_categories = await UserService.get_user_categories(db, message.from_user.id)
     selected_ids = [cat.id for cat in user_categories]
-
     await message.answer(
         "Выберите категории интересов для получения уведомлений и подборки:",
         reply_markup=get_category_selection_keyboard(categories, selected_ids),
     )
     await state.set_state(UserStates.waiting_for_categories)
 
-
 @router.message(F.text == "/help")
 async def cmd_help(message: Message):
-    help_text = """Справка по Сердце. Основные функции:
-
+    """Обработчик команды /help"""
+    help_text = """Справка по Сердцу. Основные функции:
 💌 Главное меню - /menu
-
 📮 Смотреть подборку - список актуальных мероприятий по заданным интересам и городу
-
 ❤️ Мое избранное - список избранных мероприятий
-
 ✏️ Создать мероприятие - публикация собственного мероприятия в Сердце
-
 ⭐️ Изменить категории - смена категорий для получения уведомлений и подборки
-
 📍 Изменить город - смена города для получения уведомлений и подборки
-
 Как использовать:
-
-1. Выберите город проживания
+1. Выберите города проживания
 2. Выберите категорию для получения уведомлений и подборки
 3. Создавайте и продвигайте собственные мероприятия
-4. Получайте уведомления о новых мероприятиях по вашему городу и интересам
-
+4. Получайте уведомления о новых мероприятиях по вашим городам и интересам
 Создание поста:
-
 • Заголовок: до 100 символов
 • Содержание: до 2000 символов
 • Мероприятия проходят модерацию перед публикацией
-
 По любым вопросам обращайтесь в поддержку @serdce_help
 """
     await message.answer(help_text, reply_markup=get_main_keyboard())
 
-
-@router.callback_query(F.data.startswith("city_"))
-async def process_city_selection_callback(callback: CallbackQuery, state: FSMContext, db):
-    city_name = callback.data[5:]
-
+@router.callback_query(F.data.startswith("user_city_"))
+async def process_user_city_selection(callback: CallbackQuery, state: FSMContext):
+    """Обработка выбора города пользователя"""
+    city = callback.data[10:]  # Убираем префикс "user_city_"
+    
+    # Получаем текущие выбранные города
     data = await state.get_data()
     selected_cities = data.get("selected_cities", [])
-
-    if city_name in selected_cities:
-        selected_cities.remove(city_name)
+    
+    # Добавляем или удаляем город из выбранных
+    if city in selected_cities:
+        selected_cities.remove(city)
     else:
-        selected_cities.append(city_name)
-
+        selected_cities.append(city)
+        
     await state.update_data(selected_cities=selected_cities)
-
-    await safe_edit_message(
-        message=callback.message,
-        text="Выберите университеты:",
-        reply_markup=get_city_keyboard(selected_cities=selected_cities),
-        parse_mode="HTML"
+    
+    # Обновляем клавиатуру
+    await callback.message.edit_reply_markup(
+        reply_markup=get_city_keyboard(for_user=True, selected_cities=selected_cities)
     )
+    
     await callback.answer()
 
-
-@router.callback_query(F.data == "select_all_cities")
-async def select_all_cities(callback: CallbackQuery, state: FSMContext, db):
-    all_cities = [
+@router.callback_query(F.data == "user_city_select_all")
+async def select_all_user_cities(callback: CallbackQuery, state: FSMContext):
+    """Выбрать все города для пользователя"""
+    cities = [
         "УрФУ", "УГМУ", "УрГЭУ", "УрГПУ",
         "УрГЮУ", "УГГУ", "УрГУПС", "УрГАХУ",
         "УрГАУ", "РГППУ", "РАНХиГС"
     ]
-
-    data = await state.get_data()
-    selected_cities = data.get("selected_cities", [])
-
-    if len(selected_cities) == len(all_cities):
-        new_selection = []
-        await callback.answer("🗙 Все университеты сняты")
-    else:
-        new_selection = all_cities
-        await callback.answer("✅ Все университеты выбраны!")
-
-    await state.update_data(selected_cities=new_selection)
-
-    try:
-        await callback.message.edit_reply_markup(
-            reply_markup=get_city_keyboard(selected_cities=new_selection)
-        )
-    except Exception as e:
-        if "message is not modified" not in str(e):
-            logfire.error(f"Ошибка обновления клавиатуры: {e}")
-            await callback.answer("❌ Ошибка интерфейса")
-
-
-@router.callback_query(F.data == "confirm_cities")
-async def confirm_cities(callback: CallbackQuery, state: FSMContext, db):
-    data = await state.get_data()
-    selected_cities = data.get("selected_cities", [])
-
-    if not selected_cities:
-        await callback.answer("Выберите хотя бы один университет!")
-        return
-
-    user = await UserService.register_user(
-        db=db,
-        telegram_id=callback.from_user.id,
-        username=callback.from_user.username,
-        first_name=callback.from_user.first_name,
-        last_name=callback.from_user.last_name,
+    
+    await state.update_data(selected_cities=cities)
+    
+    # Обновляем клавиатуру
+    await callback.message.edit_reply_markup(
+        reply_markup=get_city_keyboard(for_user=True, selected_cities=cities)
     )
-    await UserService.select_cities(db, user.id, selected_cities)
+    
+    await callback.answer()
 
-    categories = await CategoryService.get_all_categories(db)
+@router.callback_query(F.data == "user_city_confirm")
+async def confirm_user_cities(callback: CallbackQuery, state: FSMContext, db):
+    """Подтвердить выбор городов пользователя"""
+    data = await state.get_data()
+    selected_cities = data.get("selected_cities", [])
+    
+    if not selected_cities:
+        await callback.answer("❌ Выберите хотя бы один город!")
+        return
+    
+    # Сохраняем выбранные города
+    await UserService.update_user_cities(db, callback.from_user.id, selected_cities)
+    
     try:
         await callback.message.delete()
         await callback.message.answer(
-            "Теперь выберите категории интересов:",
-            reply_markup=get_category_selection_keyboard(categories)
+            f"📍 Города {', '.join(selected_cities)} успешно обновлены!",
+            reply_markup=get_main_keyboard()
         )
     except Exception as e:
-        if "message to delete not found" not in str(e):
+        if "message is not modified" not in str(e):
             raise
-    await state.set_state(UserStates.waiting_for_categories)
+    
+    await state.clear()
     await callback.answer()
-
 
 @router.callback_query(F.data == "change_city")
 async def change_city_callback(callback: CallbackQuery, state: FSMContext, db):
-    user = await UserService.register_user(
-        db=db,
-        telegram_id=callback.from_user.id,
-        username=callback.from_user.username,
-        first_name=callback.from_user.first_name,
-        last_name=callback.from_user.last_name,
-    )
-    user_cities = await UserService.get_user_cities(db, user.id)
-    selected_cities = [c.name for c in user_cities] if user_cities else []
-
-    await state.update_data(selected_cities=selected_cities)
-
+    """Изменение города через инлайн-кнопку"""
+    # Получаем текущие города пользователя
+    current_cities = await UserService.get_user_cities(db, callback.from_user.id)
+    
     try:
         await callback.message.delete()
-    except Exception:
-        pass
-
-    await callback.message.answer(
-        "Выберите университеты для кастомизации уведомлений и подборки:",
-        reply_markup=get_city_keyboard(selected_cities=selected_cities)
-    )
+        await callback.message.answer(
+            "Выберите города для кастомизации уведомлений и подборки:", 
+            reply_markup=get_city_keyboard(for_user=True, selected_cities=current_cities)
+        )
+    except Exception as e:
+        if "message is not modified" not in str(e):
+            raise
     await state.set_state(UserStates.waiting_for_cities)
     await callback.answer()
 
-
 @router.callback_query(F.data == "change_category")
 async def change_category_callback(callback: CallbackQuery, state: FSMContext, db):
+    """Изменение категории через инлайн-кнопку"""
     categories = await CategoryService.get_all_categories(db)
     user_categories = await UserService.get_user_categories(db, callback.from_user.id)
     selected_ids = [cat.id for cat in user_categories]
-
     try:
         await callback.message.delete()
         await callback.message.answer(
@@ -318,31 +304,37 @@ async def change_category_callback(callback: CallbackQuery, state: FSMContext, d
     await state.set_state(UserStates.waiting_for_categories)
     await callback.answer()
 
-
 @router.callback_query(F.data == "my_posts")
 async def show_my_posts_callback(callback: CallbackQuery, db):
+    """Показать посты пользователя через инлайн-кнопку"""
     posts = await PostService.get_user_posts(db, callback.from_user.id)
     if not posts:
         try:
             await callback.message.delete()
-            await callback.message.answer("📭 У вас пока нет постов.", reply_markup=get_main_keyboard())
+            await callback.message.answer(
+                "📭 У вас пока нет постов.", reply_markup=get_main_keyboard()
+            )
         except Exception as e:
             if "message is not modified" not in str(e):
                 raise
         return
-
-    response = "📊 Ваши посты:\n\n"
+    response = "📊 Ваши посты:
+"
     for post in posts:
         await db.refresh(post, attribute_names=["categories"])
         status = "✅ Одобрен" if post.is_approved else "⏳ На модерации"
         category_str = get_clean_category_string(post.categories)
         post_city = getattr(post, "city", "Не указан")
-        response += f"📝 {post.title}\n"
-        response += f"🏙️ {post_city}\n"
-        response += f"📂 {category_str}\n"
-        response += f"📅 {post.created_at.strftime('%d.%m.%Y %H:%M')}\n"
-        response += f"📊 {status}\n\n"
-
+        response += f"📝 {post.title}
+"
+        response += f"🏙️ {post_city}
+"
+        response += f"📂 {category_str}
+"
+        response += f"📅 {post.created_at.strftime('%d.%m.%Y %H:%M')}
+"
+        response += f"📊 {status}
+"
     try:
         await callback.message.delete()
         await callback.message.answer(response, reply_markup=get_main_keyboard())
@@ -351,36 +343,25 @@ async def show_my_posts_callback(callback: CallbackQuery, db):
             raise
     await callback.answer()
 
-
 @router.callback_query(F.data == "help")
 async def show_help_callback(callback: CallbackQuery):
-    help_text = """Справка по Сердце. Основные функции:
-
+    """Показать справку через инлайн-кнопку"""
+    help_text = """Справка по Сердцу. Основные функции:
 💌 Главное меню - /menu
-
 📮 Смотреть подборку - список актуальных мероприятий по заданным интересам и городу
-
 ❤️ Мое избранное - список избранных мероприятий
-
 ✏️ Создать мероприятие - публикация собственного мероприятия в Сердце
-
 ⭐️ Изменить категории - смена категорий для получения уведомлений и подборки
-
 📍 Изменить город - смена города для получения уведомлений и подборки
-
 Как использовать:
-
-1. Выберите город проживания
+1. Выберите города проживания
 2. Выберите категорию для получения уведомлений и подборки
 3. Создавайте и продвигайте собственные мероприятия
-4. Получайте уведомления о новых мероприятиях по вашему городу и интересам
-
+4. Получайте уведомления о новых мероприятиях по вашим городам и интересам
 Создание поста:
-
 • Заголовок: до 100 символов
 • Содержание: до 2000 символов
 • Мероприятия проходят модерацию перед публикацией
-
 По любым вопросам обращайтесь в поддержку @serdce_help
 """
     try:
