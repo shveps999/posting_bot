@@ -1,174 +1,85 @@
-from sqlalchemy import (
-    String,
-    Text,
-    DateTime,
-    Boolean,
-    ForeignKey,
-    Table,
-    func,
-    Column,
-    BigInteger,
-    UniqueConstraint,
-)
-from datetime import datetime, timezone
-from sqlalchemy.orm import DeclarativeBase, mapped_column, relationship
-from sqlalchemy.orm import Mapped
-from typing import List, Optional
-from enum import Enum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Table
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from events_bot.database.base import Base
 
-
-# Функция для получения UTC времени
-def utc_now():
-    """Возвращает текущее время в UTC без timezone info"""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
-
-
-# Базовый класс для моделей в стиле SQLAlchemy 2.0
-class Base(DeclarativeBase):
-    pass
-
-
-# Базовый класс с полями времени
-class TimestampMixin:
-    """Миксин для добавления полей времени создания и обновления"""
-
-    created_at: Mapped[DateTime] = mapped_column(
-        DateTime, default=func.now(), nullable=False
-    )
-    updated_at: Mapped[DateTime] = mapped_column(
-        DateTime, default=func.now(), onupdate=func.now(), nullable=False
-    )
-
-
-# Таблица связи многие-ко-многим для пользователей и категорий
-user_categories = Table(
-    "user_categories",
+# Связь many-to-many между User и City
+user_cities = Table(
+    "user_cities",
     Base.metadata,
-    Column("user_id", ForeignKey("users.id"), primary_key=True),
-    Column("category_id", ForeignKey("categories.id"), primary_key=True),
+    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
+    Column("city_id", Integer, ForeignKey("cities.id"), primary_key=True),
 )
 
-# Таблица связи многие-ко-многим для постов и категорий
-post_categories = Table(
-    "post_categories",
-    Base.metadata,
-    Column("post_id", ForeignKey("posts.id"), primary_key=True),
-    Column("category_id", ForeignKey("categories.id"), primary_key=True),
-)
-
-
-class User(Base, TimestampMixin):
-    """Модель пользователя Telegram"""
-
+class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(
-        BigInteger(), primary_key=True
-    )  # ID пользователя в Telegram
-    username: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    first_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    last_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    id = Column(Integer, primary_key=True)
+    username = Column(String)
+    first_name = Column(String)
+    last_name = Column(String)
+    city = Column(String)  # legacy, можно убрать
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Связи
-    categories: Mapped[List["Category"]] = relationship(
-        secondary=user_categories, back_populates="users"
-    )
-    posts: Mapped[List["Post"]] = relationship(back_populates="author")
+    # Связь с городами
+    cities = relationship("City", secondary=user_cities, back_populates="users")
 
+class City(Base):
+    __tablename__ = "cities"
 
-class Category(Base, TimestampMixin):
-    """Модель категории"""
+    id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+    users = relationship("User", secondary=user_cities, back_populates="cities")
+
+class Category(Base):
     __tablename__ = "categories"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(
-        String(100), unique=True, nullable=False
-    )  # Чистое название без эмодзи
-    display_name: Mapped[Optional[str]] = mapped_column(
-        String(255), nullable=True
-    )  # Название с эмодзи для UI
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True, nullable=False)
+    display_name = Column(String)
+    description = Column(String)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Связи
-    users: Mapped[List[User]] = relationship(
-        secondary=user_categories, back_populates="categories"
-    )
-    posts: Mapped[List["Post"]] = relationship(
-        secondary=post_categories, back_populates="categories"
-    )
-
-
-class Post(Base, TimestampMixin):
-    """Модель поста"""
-
+class Post(Base):
     __tablename__ = "posts"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    title: Mapped[str] = mapped_column(String(200), nullable=False)
-    content: Mapped[str] = mapped_column(Text, nullable=False)
-    author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    image_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    url: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)  # Ссылка
-    is_approved: Mapped[bool] = mapped_column(Boolean, default=False)
-    is_published: Mapped[bool] = mapped_column(Boolean, default=False)
-    published_at: Mapped[Optional[DateTime]] = mapped_column(DateTime, nullable=True)
-    # Дата и время события/актуальности поста.
-    # После наступления этого времени пост скрывается и удаляется
-    event_at: Mapped[Optional[DateTime]] = mapped_column(DateTime, nullable=True)
-    # Адрес мероприятия
-    address: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    id = Column(Integer, primary_key=True)
+    title = Column(String, nullable=False)
+    content = Column(String, nullable=False)
+    author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    city = Column(String)  # Город или университет
+    image_id = Column(String)
+    event_at = Column(DateTime(timezone=True))
+    url = Column(String)
+    address = Column(String)
+    is_approved = Column(Boolean, default=False)
+    is_published = Column(Boolean, default=False)
+    published_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Связи
-    author: Mapped[User] = relationship(back_populates="posts")
-    categories: Mapped[List[Category]] = relationship(
-        secondary=post_categories, back_populates="posts"
-    )
-    moderation_records: Mapped[List["ModerationRecord"]] = relationship(
-        back_populates="post"
-    )
-
-
-class ModerationRecord(Base, TimestampMixin):
-    """Модель записи модерации"""
-
-    __tablename__ = "moderation_records"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    post_id: Mapped[int] = mapped_column(ForeignKey("posts.id"), nullable=False)
-    moderator_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    action: Mapped[str] = mapped_column(
-        String(20), nullable=False
-    )  # approve, reject, request_changes
-    comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-
-    # Связи
-    post: Mapped[Post] = relationship(back_populates="moderation_records")
-    moderator: Mapped[User] = relationship()
-
-
-class Like(Base, TimestampMixin):
-    """Модель лайка пользователя на пост"""
-
+class Like(Base):
     __tablename__ = "likes"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    post_id: Mapped[int] = mapped_column(ForeignKey("posts.id"), nullable=False)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    post_id = Column(Integer, ForeignKey("posts.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    # Связи
-    user: Mapped[User] = relationship()
-    post: Mapped[Post] = relationship()
+class ModerationRecord(Base):
+    __tablename__ = "moderation_records"
 
-    # Уникальный индекс для предотвращения дублирования лайков
-    __table_args__ = (UniqueConstraint("user_id", "post_id", name="uq_like_user_post"),)
-
-
-class ModerationAction(str, Enum):
-    APPROVE = "approve"
-    REJECT = "reject"
-    REQUEST_CHANGES = "request_changes"
+    id = Column(Integer, primary_key=True)
+    post_id = Column(Integer, ForeignKey("posts.id"), nullable=False)
+    moderator_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    action = Column(Integer, nullable=False)  # 1=APPROVE, 2=REJECT, 3=REQUEST_CHANGES
+    comment = Column(String)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
