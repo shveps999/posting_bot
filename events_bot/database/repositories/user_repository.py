@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
+from sqlalchemy.orm import selectinload  # Добавлен импорт
 from typing import List, Optional
 from ..models import User, Category, user_categories
 import json
@@ -99,7 +100,7 @@ class UserRepository:
         result = await db.execute(
             select(User)
             .where(User.id == user_id)
-            .options(selectinload(User.categories))
+            .options(selectinload(User.categories))  # Теперь selectinload определен
         )
         user = result.scalar_one_or_none()
         return user.categories if user else []
@@ -128,6 +129,6 @@ class UserRepository:
                     User.is_active == True
                 )
             )
-            .options(selectinload(User.categories))
+            .options(selectinload(User.categories))  # Теперь selectinload определен
         )
         return result.scalars().all()
