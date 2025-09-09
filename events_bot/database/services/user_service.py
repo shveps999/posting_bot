@@ -1,57 +1,55 @@
+from typing import List, Optional
+import logfire
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete, insert
-from events_bot.database.models import User, City, user_cities
-from typing import List
-
+from ..repositories import UserRepository
+from ..models import User, Category
+import json
 
 class UserService:
+    """Асинхронный сервис для работы с пользователями"""
+    
     @staticmethod
-    async def register_user(db: AsyncSession, telegram_id: int, username: str, first_name: str, last_name: str):
-        result = await db.execute(select(User).where(User.id == telegram_id))
-        user = result.scalar_one_or_none()
+    async def register_user(
+        db: AsyncSession,
+        telegram_id: int,
+        username: Optional[str] = None,
+        first_name: Optional[str] = None,
+        last_name: Optional[str] = None,
+        cities: Optional[List[str]] = None
+    ) -> User:
+        """Зарегистрировать пользователя"""
+        user = await UserRepository.get_user(db, telegram_id)
         if not user:
-            user = User(
-                id=telegram_id,
-                username=username,
-                first_name=first_name,
-                last_name=last_name,
-                is_active=True
+            logfire.info(f"Регистрация нового пользователя {telegram_id}")
+            user = await UserRepository.create_user(
+                db, telegram_id, username, first_name, last_name, cities
             )
-            db.add(user)
-            await db.flush()
         return user
-
+    
     @staticmethod
-    async def get_user_cities(db: AsyncSession, user_id: int) -> List[City]:
-        """Получить все университеты пользователя"""
-        result = await db.execute(
-            select(City)
-            .join(user_cities)
-            .where(user_cities.c.user_id == user_id)
-        )
-        return list(result.scalars().all())
-
+    async def update_user_cities(db: AsyncSession, user_id: int, cities: List[str]) -> User:
+        """Обновить список городов пользователя"""
+        logfire.info(f"Обновление городов пользователя {user_id}: {cities}")
+        return await UserRepository.update_user_cities(db, user_id, cities)
+    
     @staticmethod
-    async def select_cities(db: AsyncSession, user_id: int, city_names: list):
-        """Сохранить выбранные университеты пользователя"""
-        # Удаляем старые связи
-        await db.execute(
-            user_cities.delete().where(user_cities.c.user_id == user_id)
-        )
-        # Добавляем новые
-        cities = await db.execute(
-            select(City).where(City.name.in_(city_names))
-        )
-        city_objects = cities.scalars().all()
-        for city in city_objects:
-            await db.execute(
-                user_cities.insert().values(user_id=user_id, city_id=city.id)
-            )
-
+    async def get_user_cities(db: AsyncSession, user_id: int) -> List[str]:
+        """Получить список городов пользователя"""
+        return await UserRepository.get_user_cities(db, user_id)
+    
+    @staticmethod
+    async def select_categories(db: AsyncSession, user_id: int, category_ids: List[int]) -> User:
+        """Выбрать категории для пользователя"""
+        logfire.info(f"Пользователь {user_id} выбрал категории: {category_ids}")
+        return await UserRepository.select_categories(db, user_id, category_ids)
+    
+    @staticmethod
+    async def get_user_categories(db: AsyncSession, user_id: int) -> List[Category]:
+        """Получить категории пользователя"""
+        return await UserRepository.get_user_categories(db, user_id)
+    
     @staticmethod
     async def delete_user(db: AsyncSession, user_id: int) -> bool:
-        user = await db.get(User, user_id)
-        if user:
-            await db.delete(user)
-            return True
-        return False
+        """Удалить пользователя и все связанные данные"""
+        logfire.info(f"Удаление пользователя {user_id}")
+        return await UserRepository.delete_user(db, user_id)
