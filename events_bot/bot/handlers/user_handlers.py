@@ -156,7 +156,7 @@ async def cmd_change_category(message: Message, state: FSMContext, db):
 
 @router.message(F.text == "/help")
 async def cmd_help(message: Message):
-    help_text = """Справка по Сердцу. Основные функции:
+    help_text = """Справка по Сердце. Основные функции:
 
 💌 Главное меню - /menu
 
@@ -190,7 +190,7 @@ async def cmd_help(message: Message):
 
 @router.callback_query(F.data.startswith("city_"))
 async def process_city_selection_callback(callback: CallbackQuery, state: FSMContext, db):
-    city_name = callback.data[5:]  # Убираем "city_"
+    city_name = callback.data[5:]
 
     data = await state.get_data()
     selected_cities = data.get("selected_cities", [])
