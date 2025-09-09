@@ -33,8 +33,7 @@ async def cmd_start(message: Message, state: FSMContext, db):
         # Если города уже выбраны, переходим к выбору категорий
         categories = await CategoryService.get_all_categories(db)
         await message.answer(
-            "👋 Добро пожаловать в Сердце Екатеринбурга!
-"
+            "👋 Добро пожаловать в Сердце Екатеринбурга!\n"
             "Теперь выберите категории интересов для кастомизации уведомлений и подборки:",
             reply_markup=get_category_selection_keyboard(categories),
         )
@@ -42,8 +41,7 @@ async def cmd_start(message: Message, state: FSMContext, db):
     else:
         # Если городов нет, предлагаем выбрать города
         await message.answer(
-            "👋 Добро пожаловать в Сердце Екатеринбурга!
-"
+            "👋 Добро пожаловать в Сердце Екатеринбурга!\n"
             "Выберите города для получения уведомлений и подборки:",
             reply_markup=get_city_keyboard(for_user=True)
         )
@@ -109,8 +107,7 @@ async def confirm_user_cities(callback: CallbackQuery, state: FSMContext, db):
     try:
         await callback.message.delete()
         await callback.message.answer(
-            f"📍 Города {', '.join(selected_cities)} выбраны!
-"
+            f"📍 Города {', '.join(selected_cities)} выбраны!\n"
             "Теперь выберите категории интересов для кастомизации уведомлений и подборки:",
             reply_markup=get_category_selection_keyboard(categories),
         )
