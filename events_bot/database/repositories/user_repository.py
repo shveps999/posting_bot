@@ -81,7 +81,12 @@ class UserRepository:
     @staticmethod
     async def select_categories(db: AsyncSession, user_id: int, category_ids: List[int]) -> User:
         """Выбрать категории для пользователя"""
-        result = await db.execute(select(User).where(User.id == user_id))
+        # Получаем пользователя с уже загруженными категориями
+        result = await db.execute(
+            select(User)
+            .where(User.id == user_id)
+            .options(selectinload(User.categories))  # Явно загружаем категории
+        )
         user = result.scalar_one_or_none()
         if user:
             # Получаем категории по ID
@@ -89,6 +94,7 @@ class UserRepository:
                 select(Category).where(Category.id.in_(category_ids))
             )
             categories = categories_result.scalars().all()
+            # Устанавливаем категории напрямую через атрибут
             user.categories = categories
             await db.commit()
             await db.refresh(user)
