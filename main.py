@@ -14,7 +14,7 @@ except Exception:
 import asyncio
 import os
 from contextlib import asynccontextmanager
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from events_bot.database import init_database
 from events_bot.bot.handlers import (
@@ -30,8 +30,6 @@ from events_bot.database.services.post_service import PostService
 from loguru import logger
 
 logger.configure(handlers=[logfire.loguru_handler()])
-
-logfire.info("✅ Все обработчики зарегистрированы")
 
 
 async def main():
@@ -62,30 +60,6 @@ async def main():
     # Подключаем middleware для базы данных
     dp.message.middleware(DatabaseMiddleware())
     dp.callback_query.middleware(DatabaseMiddleware())
-
-    # === ГЛОБАЛЬНОЕ ЛОГИРОВАНИЕ ВСЕХ CALLBACK_QUERY ===
-    async def log_all_callbacks(handler, event: types.CallbackQuery, data):
-        logfire.info(
-            f"📥 CALLBACK_QUERY: "
-            f"data='{event.data}' | "
-            f"user={event.from_user.id} | "
-            f"chat={event.message.chat.id} | "
-            f"message_id={event.message.message_id}"
-        )
-        return await handler(event, data)
-
-    dp.callback_query.outer_middleware(log_all_callbacks)
-    # ================================================
-
-    # === ГЛОБАЛЬНЫЙ ОБРАБОТЧИК ВСЕХ CALLBACK_QUERY ===
-    @dp.callback_query()
-    async def catch_all_callbacks(callback: types.CallbackQuery, data: dict):
-        logfire.warning(f"🚨 ПОЙМАН callback: data='{callback.data}' от @{callback.from_user.username} ({callback.from_user.id})")
-        try:
-            await callback.answer()
-        except Exception as e:
-            logfire.error(f"Ошибка при answer на callback: {e}")
-    # ================================================
 
     # Регистрируем обработчики
     register_start_handlers(dp)
