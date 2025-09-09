@@ -1,5 +1,5 @@
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery, FSInputFile, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.fsm.context import FSMContext
 from typing import Union
 import logfire
@@ -107,18 +107,24 @@ async def select_all_cities(callback: CallbackQuery, state: FSMContext, db):
         "УрГАУ", "РГППУ", "РАНХиГС"
     ]
 
+    # Получаем текущий выбор
     data = await state.get_data()
     selected_cities = data.get('selected_cities', [])
 
+    # Определяем новое состояние
     if len(selected_cities) == len(all_cities):
+        # Все выбраны → снимаем всё
         new_selection = []
         await callback.answer("🗙 Все университеты сняты")
     else:
+        # Не все выбраны → выбираем всё
         new_selection = all_cities
         await callback.answer("✅ Все университеты выбраны!")
 
+    # Сохраняем новое состояние
     await state.update_data(selected_cities=new_selection)
 
+    # Обновляем клавиатуру
     try:
         await callback.message.edit_reply_markup(
             reply_markup=get_city_keyboard(for_post=True, selected_cities=new_selection)
@@ -127,17 +133,15 @@ async def select_all_cities(callback: CallbackQuery, state: FSMContext, db):
         if "message is not modified" not in str(e):
             logfire.error(f"Ошибка обновления клавиатуры: {e}")
             await callback.answer("❌ Ошибка интерфейса")
+        # Игнорируем "message is not modified" — это нормально
 
 
 @router.callback_query(PostStates.waiting_for_city_selection, F.data == "post_city_confirm")
 async def confirm_city_selection(callback: CallbackQuery, state: FSMContext, db):
     """Подтверждение выбора городов для поста"""
-    current_state = await state.get_state()
-    logfire.info(f"Текущее состояние: {current_state}")
-    
     data = await state.get_data()
     selected_cities = data.get('selected_cities', [])
-    logfire.info(f"[confirm_city_selection] selected_cities = {selected_cities}")
+    logfire.info(f"Выбранные города: {selected_cities}")
     
     if not selected_cities:
         await callback.answer("Выберите хотя бы один университет!")
@@ -154,9 +158,7 @@ async def confirm_city_selection(callback: CallbackQuery, state: FSMContext, db)
             reply_markup=get_category_selection_keyboard(all_categories, for_post=True),
         )
     except Exception as e:
-        if "message is not modified" in str(e):
-            pass
-        else:
+        if "message is not modified" not in str(e):
             raise
     await state.set_state(PostStates.waiting_for_category_selection)
     await callback.answer()
@@ -164,15 +166,16 @@ async def confirm_city_selection(callback: CallbackQuery, state: FSMContext, db)
 
 @router.callback_query(PostStates.waiting_for_city_selection, F.data.startswith("post_city_"))
 async def process_post_city_selection(callback: CallbackQuery, state: FSMContext, db):
-    city_name = callback.data[10:]
+    """Обработка выбора города для поста"""
+    city = callback.data[10:]  # Убираем префикс "post_city_"
     
     data = await state.get_data()
-    selected_cities = data.get("selected_cities", [])
+    selected_cities = data.get('selected_cities', [])
     
-    if city_name in selected_cities:
-        selected_cities.remove(city_name)
+    if city in selected_cities:
+        selected_cities.remove(city)
     else:
-        selected_cities.append(city_name)
+        selected_cities.append(city)
     
     await state.update_data(selected_cities=selected_cities)
     
