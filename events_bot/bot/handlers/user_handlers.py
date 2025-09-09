@@ -15,6 +15,7 @@ import random
 # Гифки
 LIKED_GIF_ID = os.getenv("LIKED_GIF_ID")
 POSTS_PER_PAGE = 5  # Добавляем отсутствующую переменную
+MAIN_MENU_GIF_IDS = os.getenv("MAIN_MENU_GIF_IDS", "").split(",") if os.getenv("MAIN_MENU_GIF_IDS") else []
 
 router = Router()
 
@@ -69,6 +70,28 @@ async def cmd_delete_user(message: Message, db):
         )
     else:
         await message.answer("❌ Ошибка при удалении аккаунта. Попробуйте позже.")
+
+@router.message(F.text == "/menu")
+async def cmd_menu(message: Message):
+    """Обработчик команды /menu"""
+    # Отправляем гифку с главным меню, если доступна
+    if MAIN_MENU_GIF_IDS:
+        selected_gif = random.choice(MAIN_MENU_GIF_IDS)
+        try:
+            await message.answer_animation(
+                animation=selected_gif,
+                caption="",
+                parse_mode="HTML",
+                reply_markup=get_main_keyboard()
+            )
+            return
+        except Exception as e:
+            logfire.warning(f"Ошибка отправки гифки меню: {e}")
+    # Резервный вариант - текстовое меню
+    await message.answer(
+        "Выберите действие:",
+        reply_markup=get_main_keyboard()
+    )
 
 @router.message(F.text == "/liked_posts")
 async def cmd_liked_posts(message: Message, db):
