@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
-from ..models import ModerationRecord, ModerationAction
+from ..models import ModerationRecord
 
 
 class ModerationRepository:
@@ -11,6 +11,7 @@ class ModerationRepository:
     async def get_moderation_history(
         db: AsyncSession, post_id: int
     ) -> List[ModerationRecord]:
+        """Получить историю модерации поста"""
         result = await db.execute(
             select(ModerationRecord)
             .where(ModerationRecord.post_id == post_id)
@@ -22,6 +23,7 @@ class ModerationRepository:
     async def get_moderator_actions(
         db: AsyncSession, moderator_id: int
     ) -> List[ModerationRecord]:
+        """Получить действия модератора"""
         result = await db.execute(
             select(ModerationRecord)
             .where(ModerationRecord.moderator_id == moderator_id)
@@ -31,8 +33,9 @@ class ModerationRepository:
 
     @staticmethod
     async def get_actions_by_type(
-        db: AsyncSession, action: ModerationAction
+        db: AsyncSession, action: int
     ) -> List[ModerationRecord]:
+        """Получить действия по типу (1=APPROVE, 2=REJECT, 3=REQUEST_CHANGES)"""
         result = await db.execute(
             select(ModerationRecord)
             .where(ModerationRecord.action == action)
