@@ -77,6 +77,16 @@ async def main():
     dp.callback_query.outer_middleware(log_all_callbacks)
     # ================================================
 
+    # === ГЛОБАЛЬНЫЙ ОБРАБОТЧИК ВСЕХ CALLBACK_QUERY ===
+    @dp.callback_query()
+    async def catch_all_callbacks(callback: types.CallbackQuery):
+        logfire.warning(f"🚨 ПОЙМАН callback: data='{callback.data}' от @{callback.from_user.username} ({callback.from_user.id})")
+        try:
+            await callback.answer()
+        except Exception as e:
+            logfire.error(f"Ошибка при answer на callback: {e}")
+    # ================================================
+
     # Регистрируем обработчики
     register_start_handlers(dp)
     register_user_handlers(dp)
