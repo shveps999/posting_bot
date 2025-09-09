@@ -2,14 +2,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func, insert, or_, delete
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
-from datetime import datetime, timezone
-from ..models import Post, ModerationRecord, Category, post_categories
+from datetime import datetime
+from ..models import Post, ModerationRecord, ModerationAction, Category, post_categories
 from ..models import User, Like
-
+import json
 
 class PostRepository:
     """Асинхронный репозиторий для работы с постами"""
-
+    
     @staticmethod
     async def create_post(
         db: AsyncSession,
@@ -17,23 +17,27 @@ class PostRepository:
         content: str,
         author_id: int,
         category_ids: List[int],
-        city: str | None = None,
+        cities: List[str],
         image_id: str | None = None,
         event_at: datetime | None = None,
         url: str | None = None,
         address: str | None = None,
     ) -> Post:
-        """Создать новый пост с категориями и адресом"""
+        """Создать новый пост с категориями, городами и адресом"""
+        # Получаем категории
         categories_result = await db.execute(
             select(Category).where(Category.id.in_(category_ids))
         )
         category_objs = categories_result.scalars().all()
-
+        
+        # Преобразуем список городов в JSON строку
+        cities_str = json.dumps(cities) if cities else None
+        
         post = Post(
             title=title,
             content=content,
             author_id=author_id,
-            city=city,
+            cities=cities_str,
             image_id=image_id,
             event_at=event_at,
             url=url,
@@ -44,7 +48,19 @@ class PostRepository:
         await db.commit()
         await db.refresh(post)
         return post
-
+    
+    @staticmethod
+    async def get_post_cities(db: AsyncSession, post_id: int) -> List[str]:
+        """Получить список городов поста"""
+        result = await db.execute(select(Post.cities).where(Post.id == post_id))
+        cities_str = result.scalar_one_or_none()
+        if cities_str:
+            try:
+                return json.loads(cities_str)
+            except (json.JSONDecodeError, TypeError):
+                return []
+        return []
+    
     @staticmethod
     async def get_pending_moderation(db: AsyncSession) -> List[Post]:
         result = await db.execute(
@@ -53,7 +69,7 @@ class PostRepository:
             .options(selectinload(Post.author), selectinload(Post.categories))
         )
         return result.scalars().all()
-
+    
     @staticmethod
     async def get_approved_posts(db: AsyncSession) -> List[Post]:
         result = await db.execute(
@@ -68,7 +84,7 @@ class PostRepository:
             .order_by(Post.event_at.is_(None), Post.event_at.asc())
         )
         return result.scalars().all()
-
+    
     @staticmethod
     async def get_posts_by_categories(
         db: AsyncSession, category_ids: List[int]
@@ -89,7 +105,7 @@ class PostRepository:
             .order_by(Post.event_at.is_(None), Post.event_at.asc())
         )
         return result.scalars().all()
-
+    
     @staticmethod
     async def approve_post(
         db: AsyncSession, post_id: int, moderator_id: int, comment: str = None
@@ -103,14 +119,14 @@ class PostRepository:
             moderation_record = ModerationRecord(
                 post_id=post_id,
                 moderator_id=moderator_id,
-                action=1,  # APPROVE
+                action=ModerationAction.APPROVE.value,
                 comment=comment,
             )
             db.add(moderation_record)
             await db.commit()
             await db.refresh(post)
         return post
-
+    
     @staticmethod
     async def reject_post(
         db: AsyncSession, post_id: int, moderator_id: int, comment: str = None
@@ -123,14 +139,14 @@ class PostRepository:
             moderation_record = ModerationRecord(
                 post_id=post_id,
                 moderator_id=moderator_id,
-                action=2,  # REJECT
+                action=ModerationAction.REJECT.value,
                 comment=comment,
             )
             db.add(moderation_record)
             await db.commit()
             await db.refresh(post)
         return post
-
+    
     @staticmethod
     async def request_changes(
         db: AsyncSession, post_id: int, moderator_id: int, comment: str = None
@@ -141,14 +157,14 @@ class PostRepository:
             moderation_record = ModerationRecord(
                 post_id=post_id,
                 moderator_id=moderator_id,
-                action=3,  # REQUEST_CHANGES
+                action=ModerationAction.REQUEST_CHANGES.value,
                 comment=comment,
             )
             db.add(moderation_record)
             await db.commit()
             await db.refresh(post)
         return post
-
+    
     @staticmethod
     async def get_user_posts(db: AsyncSession, user_id: int) -> List[Post]:
         result = await db.execute(
@@ -157,7 +173,7 @@ class PostRepository:
             .options(selectinload(Post.categories))
         )
         return result.scalars().all()
-
+    
     @staticmethod
     async def get_post_by_id(db: AsyncSession, post_id: int) -> Optional[Post]:
         result = await db.execute(
@@ -166,7 +182,7 @@ class PostRepository:
             .options(selectinload(Post.author), selectinload(Post.categories))
         )
         return result.scalar_one_or_none()
-
+    
     @staticmethod
     async def publish_post(db: AsyncSession, post_id: int) -> Post:
         result = await db.execute(select(Post).where(Post.id == post_id))
@@ -177,21 +193,48 @@ class PostRepository:
             await db.commit()
             await db.refresh(post)
         return post
-
+    
     @staticmethod
     async def get_feed_posts(
         db: AsyncSession, user_id: int, limit: int = 10, offset: int = 0
     ) -> List[Post]:
+        # Получаем города пользователя
+        user_result = await db.execute(
+            select(User)
+            .where(User.id == user_id)
+        )
+        user = user_result.scalar_one_or_none()
+        
+        if not user:
+            return []
+            
+        # Получаем города пользователя
+        try:
+            user_cities = json.loads(user.cities) if user.cities else []
+        except (json.JSONDecodeError, TypeError):
+            user_cities = []
+            
+        if not user_cities:
+            return []
+        
+        # Получаем категории пользователя
         user_categories_result = await db.execute(
             select(User)
             .where(User.id == user_id)
             .options(selectinload(User.categories))
         )
-        user = user_categories_result.scalar_one_or_none()
-        if not user or not user.categories:
+        user_with_categories = user_categories_result.scalar_one_or_none()
+        
+        if not user_with_categories or not user_with_categories.categories:
             return []
-
-        category_ids = [cat.id for cat in user.categories]
+            
+        category_ids = [cat.id for cat in user_with_categories.categories]
+        
+        # Создаем условия для поиска по городам
+        city_conditions = []
+        for city in user_cities:
+            city_conditions.append(Post.cities.contains(f'"{city}"'))
+        
         now_utc = func.now()
         result = await db.execute(
             select(Post)
@@ -199,6 +242,7 @@ class PostRepository:
             .join(Post.categories)
             .where(
                 and_(
+                    or_(*city_conditions),
                     Post.categories.any(Category.id.in_(category_ids)),
                     Post.is_approved == True,
                     Post.is_published == True,
@@ -211,24 +255,52 @@ class PostRepository:
             .offset(offset)
         )
         return result.scalars().all()
-
+    
     @staticmethod
     async def get_feed_posts_count(db: AsyncSession, user_id: int) -> int:
+        # Получаем города пользователя
+        user_result = await db.execute(
+            select(User)
+            .where(User.id == user_id)
+        )
+        user = user_result.scalar_one_or_none()
+        
+        if not user:
+            return 0
+            
+        # Получаем города пользователя
+        try:
+            user_cities = json.loads(user.cities) if user.cities else []
+        except (json.JSONDecodeError, TypeError):
+            user_cities = []
+            
+        if not user_cities:
+            return 0
+        
+        # Получаем категории пользователя
         user_categories_result = await db.execute(
             select(User)
             .where(User.id == user_id)
             .options(selectinload(User.categories))
         )
-        user = user_categories_result.scalar_one_or_none()
-        if not user or not user.categories:
+        user_with_categories = user_categories_result.scalar_one_or_none()
+        
+        if not user_with_categories or not user_with_categories.categories:
             return 0
-
-        category_ids = [cat.id for cat in user.categories]
+            
+        category_ids = [cat.id for cat in user_with_categories.categories]
+        
+        # Создаем условия для поиска по городам
+        city_conditions = []
+        for city in user_cities:
+            city_conditions.append(Post.cities.contains(f'"{city}"'))
+        
         result = await db.execute(
             select(func.count(Post.id))
             .join(Post.categories)
             .where(
                 and_(
+                    or_(*city_conditions),
                     Post.categories.any(Category.id.in_(category_ids)),
                     Post.is_approved == True,
                     Post.is_published == True,
@@ -237,11 +309,31 @@ class PostRepository:
             )
         )
         return result.scalar() or 0
-
+    
     @staticmethod
     async def get_liked_posts(
         db: AsyncSession, user_id: int, limit: int = 10, offset: int = 0
     ) -> List[Post]:
+        from ..models import Like
+        # Получаем города пользователя
+        user_result = await db.execute(
+            select(User)
+            .where(User.id == user_id)
+        )
+        user = user_result.scalar_one_or_none()
+        
+        if not user:
+            return []
+            
+        # Получаем города пользователя
+        try:
+            user_cities = json.loads(user.cities) if user.cities else []
+        except (json.JSONDecodeError, TypeError):
+            user_cities = []
+            
+        if not user_cities:
+            return []
+        
         result = await db.execute(
             select(Post)
             .join(Like, Like.post_id == Post.id)
@@ -259,9 +351,29 @@ class PostRepository:
             .offset(offset)
         )
         return result.scalars().all()
-
+    
     @staticmethod
     async def get_liked_posts_count(db: AsyncSession, user_id: int) -> int:
+        from ..models import Like
+        # Получаем города пользователя
+        user_result = await db.execute(
+            select(User)
+            .where(User.id == user_id)
+        )
+        user = user_result.scalar_one_or_none()
+        
+        if not user:
+            return 0
+            
+        # Получаем города пользователя
+        try:
+            user_cities = json.loads(user.cities) if user.cities else []
+        except (json.JSONDecodeError, TypeError):
+            user_cities = []
+            
+        if not user_cities:
+            return 0
+        
         result = await db.execute(
             select(func.count(Post.id))
             .join(Like, Like.post_id == Post.id)
@@ -275,9 +387,10 @@ class PostRepository:
             )
         )
         return result.scalar() or 0
-
+    
     @staticmethod
     async def delete_expired_posts(db: AsyncSession) -> int:
+        from ..models import Like, ModerationRecord
         current_utc = datetime.now(timezone.utc).replace(tzinfo=None)
         expired_posts = await db.execute(
             select(Post.id).where(
@@ -299,7 +412,7 @@ class PostRepository:
         result = await db.execute(Post.__table__.delete().where(Post.id.in_(post_ids)))
         await db.commit()
         return result.rowcount or 0
-
+    
     @staticmethod
     async def get_expired_posts_info(db: AsyncSession) -> list[dict]:
         current_utc = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -310,10 +423,11 @@ class PostRepository:
         )
         rows = result.all()
         return [{"id": row[0], "image_id": row[1]} for row in rows]
-
+    
     @staticmethod
     async def delete_post(db: AsyncSession, post_id: int) -> bool:
         """Полное удаление поста по ID"""
+        from ..models import Like, ModerationRecord
         # Удаляем лайки
         await db.execute(delete(Like).where(Like.post_id == post_id))
         # Удаляем записи модерации
