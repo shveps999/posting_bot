@@ -190,8 +190,7 @@ async def cmd_help(message: Message):
 
 @router.callback_query(UserStates.waiting_for_cities, F.data.startswith("city_"))
 async def process_city_selection_callback(callback: CallbackQuery, state: FSMContext, db):
-    logfire.info("🔥 process_city_selection_callback вызван!")
-    city_name = callback.data[5:]  # Убираем "city_"
+    city_name = callback.data[5:]
     
     data = await state.get_data()
     selected_cities = data.get("selected_cities", [])
