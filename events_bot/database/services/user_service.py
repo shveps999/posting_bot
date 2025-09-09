@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from events_bot.database.models import User, City, UserCity
+from sqlalchemy import select, delete, insert
+from events_bot.database.models import User, City, user_cities
 from typing import List
 
 
@@ -26,17 +26,17 @@ class UserService:
         """Получить все университеты пользователя"""
         result = await db.execute(
             select(City)
-            .join(UserCity)
-            .where(UserCity.user_id == user_id)
+            .join(user_cities)
+            .where(user_cities.c.user_id == user_id)
         )
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     @staticmethod
     async def select_cities(db: AsyncSession, user_id: int, city_names: list):
         """Сохранить выбранные университеты пользователя"""
         # Удаляем старые связи
         await db.execute(
-            UserCity.__table__.delete().where(UserCity.user_id == user_id)
+            user_cities.delete().where(user_cities.c.user_id == user_id)
         )
         # Добавляем новые
         cities = await db.execute(
@@ -44,8 +44,9 @@ class UserService:
         )
         city_objects = cities.scalars().all()
         for city in city_objects:
-            user_city = UserCity(user_id=user_id, city_id=city.id)
-            db.add(user_city)
+            await db.execute(
+                user_cities.insert().values(user_id=user_id, city_id=city.id)
+            )
 
     @staticmethod
     async def delete_user(db: AsyncSession, user_id: int) -> bool:
