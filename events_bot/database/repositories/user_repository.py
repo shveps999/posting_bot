@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, delete, insert
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
-from ..models import User, Category, user_cities
+from ..models import User, City, Category, user_cities
 
 
 class UserRepository:
