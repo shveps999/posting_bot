@@ -188,21 +188,19 @@ async def cmd_help(message: Message):
     await message.answer(help_text, reply_markup=get_main_keyboard())
 
 
-@router.callback_query(UserStates.waiting_for_cities, F.data.startswith("city_"))
+@router.callback_query(F.data.startswith("city_"))
 async def process_city_selection_callback(callback: CallbackQuery, state: FSMContext, db):
-    city_name = callback.data[5:]
-    
+    city_name = callback.data[5:]  # Убираем "city_"
+
     data = await state.get_data()
     selected_cities = data.get("selected_cities", [])
-    
+
     if city_name in selected_cities:
         selected_cities.remove(city_name)
     else:
         selected_cities.append(city_name)
-    
-    await state.update_data(selected_cities=selected_cities)
 
-    logfire.info(f"Город {city_name} -> выбранные: {selected_cities}")
+    await state.update_data(selected_cities=selected_cities)
 
     await safe_edit_message(
         message=callback.message,
@@ -211,6 +209,36 @@ async def process_city_selection_callback(callback: CallbackQuery, state: FSMCon
         parse_mode="HTML"
     )
     await callback.answer()
+
+
+@router.callback_query(F.data == "select_all_cities")
+async def select_all_cities(callback: CallbackQuery, state: FSMContext, db):
+    all_cities = [
+        "УрФУ", "УГМУ", "УрГЭУ", "УрГПУ",
+        "УрГЮУ", "УГГУ", "УрГУПС", "УрГАХУ",
+        "УрГАУ", "РГППУ", "РАНХиГС"
+    ]
+
+    data = await state.get_data()
+    selected_cities = data.get("selected_cities", [])
+
+    if len(selected_cities) == len(all_cities):
+        new_selection = []
+        await callback.answer("🗙 Все университеты сняты")
+    else:
+        new_selection = all_cities
+        await callback.answer("✅ Все университеты выбраны!")
+
+    await state.update_data(selected_cities=new_selection)
+
+    try:
+        await callback.message.edit_reply_markup(
+            reply_markup=get_city_keyboard(selected_cities=new_selection)
+        )
+    except Exception as e:
+        if "message is not modified" not in str(e):
+            logfire.error(f"Ошибка обновления клавиатуры: {e}")
+            await callback.answer("❌ Ошибка интерфейса")
 
 
 @router.callback_query(F.data == "confirm_cities")
@@ -242,7 +270,6 @@ async def confirm_cities(callback: CallbackQuery, state: FSMContext, db):
         if "message to delete not found" not in str(e):
             raise
     await state.set_state(UserStates.waiting_for_categories)
-    # Не вызываем state.clear() — чтобы не потерять данные
     await callback.answer()
 
 
@@ -327,7 +354,7 @@ async def show_my_posts_callback(callback: CallbackQuery, db):
 
 @router.callback_query(F.data == "help")
 async def show_help_callback(callback: CallbackQuery):
-    help_text = """Справка по Сердцу. Основные функции:
+    help_text = """Справка по Сердце. Основные функции:
 
 💌 Главное меню - /menu
 
