@@ -62,8 +62,7 @@ async def cmd_delete_user(message: Message, db):
     success = await UserService.delete_user(db, user_id)
     if success:
         await message.answer(
-            "✅ Ваш аккаунт и все связанные данные (посты, лайки) успешно удалены.
-"
+            "✅ Ваш аккаунт и все связанные данные (посты, лайки) успешно удалены.\n"
             "Если захотите вернуться — просто начните сначала командой /start",
             reply_markup=get_main_keyboard()
         )
@@ -99,14 +98,10 @@ async def show_liked_page_cmd(message: Message, page: int, db, user_id: int):
     posts = await PostService.get_liked_posts(db, user_id, POSTS_PER_PAGE, page * POSTS_PER_PAGE)
     if not posts:
         await message.answer(
-            "У вас пока нет избранных мероприятий
-"
-            "Чтобы добавить:
-"
-            "• Выберите событие в подборке
-"
-            "• Перейдите в подробнее события
-"
+            "У вас пока нет избранных мероприятий\n"
+            "Чтобы добавить:\n"
+            "• Выберите событие в подборке\n"
+            "• Перейдите в подробнее события\n"
             "• Нажмите «В избранное» под постом",
             reply_markup=get_main_keyboard(),
             parse_mode="HTML"
@@ -135,23 +130,17 @@ async def cmd_my_posts(message: Message, db):
             "📭 У вас пока нет постов.", reply_markup=get_main_keyboard()
         )
         return
-    response = "📊 Ваши посты:
-"
+    response = "📊 Ваши посты:\n"
     for post in posts:
         await db.refresh(post, attribute_names=["categories"])
         status = "✅ Одобрен" if post.is_approved else "⏳ На модерации"
         category_str = get_clean_category_string(post.categories)
         post_city = getattr(post, "city", "Не указан")
-        response += f"📝 {post.title}
-"
-        response += f"🏙️ {post_city}
-"
-        response += f"📂 {category_str}
-"
-        response += f"📅 {post.created_at.strftime('%d.%m.%Y %H:%M')}
-"
-        response += f"📊 {status}
-"
+        response += f"📝 {post.title}\n"
+        response += f"🏙️ {post_city}\n"
+        response += f"📂 {category_str}\n"
+        response += f"📅 {post.created_at.strftime('%d.%m.%Y %H:%M')}\n"
+        response += f"📊 {status}\n"
     await message.answer(response, reply_markup=get_main_keyboard())
 
 @router.message(F.text == "/change_university")
@@ -318,23 +307,17 @@ async def show_my_posts_callback(callback: CallbackQuery, db):
             if "message is not modified" not in str(e):
                 raise
         return
-    response = "📊 Ваши посты:
-"
+    response = "📊 Ваши посты:\n"
     for post in posts:
         await db.refresh(post, attribute_names=["categories"])
         status = "✅ Одобрен" if post.is_approved else "⏳ На модерации"
         category_str = get_clean_category_string(post.categories)
         post_city = getattr(post, "city", "Не указан")
-        response += f"📝 {post.title}
-"
-        response += f"🏙️ {post_city}
-"
-        response += f"📂 {category_str}
-"
-        response += f"📅 {post.created_at.strftime('%d.%m.%Y %H:%M')}
-"
-        response += f"📊 {status}
-"
+        response += f"📝 {post.title}\n"
+        response += f"🏙️ {post_city}\n"
+        response += f"📂 {category_str}\n"
+        response += f"📅 {post.created_at.strftime('%d.%m.%Y %H:%M')}\n"
+        response += f"📊 {status}\n"
     try:
         await callback.message.delete()
         await callback.message.answer(response, reply_markup=get_main_keyboard())
