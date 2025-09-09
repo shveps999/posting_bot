@@ -5,11 +5,15 @@ from events_bot.database.services import UserService, CategoryService
 from events_bot.bot.states import UserStates
 from events_bot.bot.keyboards import get_city_keyboard, get_category_selection_keyboard
 import logfire
+import os
 
 router = Router()
 
 # Добавляем константу POSTS_PER_PAGE
 POSTS_PER_PAGE = 5
+
+# Добавляем отсутствующую переменную
+MAIN_MENU_GIF_IDS = os.getenv("MAIN_MENU_GIF_IDS", "").split(",") if os.getenv("MAIN_MENU_GIF_IDS") else []
 
 def register_start_handlers(dp: Router):
     """Регистрация обработчиков стартового экрана"""
