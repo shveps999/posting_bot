@@ -3,7 +3,6 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from events_bot.database.base import Base
 
-
 # Таблица many-to-many: пользователь — университет
 user_cities = Table(
     "user_cities",
@@ -12,6 +11,13 @@ user_cities = Table(
     Column("city_id", Integer, ForeignKey("cities.id"), primary_key=True),
 )
 
+# Таблица many-to-many: пост — категория
+post_categories = Table(
+    "post_categories",
+    Base.metadata,
+    Column("post_id", Integer, ForeignKey("posts.id"), primary_key=True),
+    Column("category_id", Integer, ForeignKey("categories.id"), primary_key=True),
+)
 
 class User(Base):
     __tablename__ = "users"
@@ -24,9 +30,7 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Связь с университетами
     cities = relationship("City", secondary=user_cities, back_populates="users")
-
 
 class City(Base):
     __tablename__ = "cities"
@@ -36,9 +40,7 @@ class City(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Связь с пользователями
     users = relationship("User", secondary=user_cities, back_populates="cities")
-
 
 class Category(Base):
     __tablename__ = "categories"
@@ -51,7 +53,6 @@ class Category(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-
 class Post(Base):
     __tablename__ = "posts"
 
@@ -59,7 +60,7 @@ class Post(Base):
     title = Column(String, nullable=False)
     content = Column(String, nullable=False)
     author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    city = Column(String)  # может быть устаревшим, но для совместимости
+    city = Column(String)
     image_id = Column(String)
     event_at = Column(DateTime(timezone=True))
     url = Column(String)
@@ -70,7 +71,6 @@ class Post(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-
 class Like(Base):
     __tablename__ = "likes"
 
@@ -79,14 +79,13 @@ class Like(Base):
     post_id = Column(Integer, ForeignKey("posts.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-
 class ModerationRecord(Base):
     __tablename__ = "moderation_records"
 
     id = Column(Integer, primary_key=True)
     post_id = Column(Integer, ForeignKey("posts.id"), nullable=False)
     moderator_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    action = Column(Integer, nullable=False)  # 1=APPROVE, 2=REJECT, 3=REQUEST_CHANGES
+    action = Column(Integer, nullable=False)
     comment = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
