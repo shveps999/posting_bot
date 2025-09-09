@@ -1,12 +1,14 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete, insert
+from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from typing import List
 from ..repositories import UserRepository
-from ..models import User, Category, City, user_cities
+from ..models import User, Category
 
 
 class UserService:
+    """Асинхронный сервис для работы с пользователями"""
+
     @staticmethod
     async def register_user(
         db: AsyncSession,
@@ -26,44 +28,6 @@ class UserService:
         return await UserRepository.add_categories_to_user(db, user_id, category_ids)
 
     @staticmethod
-    async def select_cities(db: AsyncSession, user_id: int, city_names: List[str]) -> User:
-        # Удаляем старые связи
-        await db.execute(
-            delete(user_cities).where(user_cities.c.user_id == user_id)
-        )
-
-        # Получаем или создаём города
-        result = await db.execute(select(City).where(City.name.in_(city_names)))
-        cities = list(result.scalars().all())
-        existing_names = {c.name for c in cities}
-
-        # Добавляем отсутствующие города
-        new_cities = []
-        for name in city_names:
-            if name not in existing_names:
-                new_city = City(name=name)
-                db.add(new_city)
-                new_cities.append(new_city)
-                cities.append(new_city)
-
-        await db.flush()  # Сохраняем новые города, чтобы получить ID
-
-        # Добавляем связи в user_cities
-        if cities:
-            values = [{"user_id": user_id, "city_id": city.id} for city in cities]
-            await db.execute(insert(user_cities).values(values))
-
-        await db.commit()
-
-        # Возвращаем обновлённого пользователя
-        result = await db.execute(
-            select(User)
-            .where(User.id == user_id)
-            .options(selectinload(User.cities))
-        )
-        return result.scalar_one()
-
-    @staticmethod
     async def get_user_categories(db: AsyncSession, user_id: int) -> List[Category]:
         result = await db.execute(
             select(User)
@@ -74,23 +38,12 @@ class UserService:
         return user.categories if user else []
 
     @staticmethod
-    async def get_user_cities(db: AsyncSession, user_id: int) -> List[City]:
-        result = await db.execute(
-            select(User)
-            .where(User.id == user_id)
-            .options(selectinload(User.cities))
-        )
-        user = result.scalar_one_or_none()
-        return user.cities if user else []
-
-    @staticmethod
     async def get_users_for_notification(
-        db: AsyncSession, category_ids: List[int], city_names: List[str]
+        db: AsyncSession, category_ids: List[int]
     ) -> List[User]:
-        return await UserRepository.get_users_by_categories_and_cities(
-            db, category_ids, city_names
-        )
+        return await UserRepository.get_users_by_categories(db, category_ids)
 
     @staticmethod
     async def delete_user(db: AsyncSession, user_id: int) -> bool:
+        """Удалить пользователя по ID"""
         return await UserRepository.delete_user(db, user_id)
