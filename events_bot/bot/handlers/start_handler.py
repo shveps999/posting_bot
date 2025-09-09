@@ -45,7 +45,6 @@ async def cmd_start(message: Message, state: FSMContext, db):
         await show_main_menu(message)
         return
 
-    # Подтягиваем выбранные города из БД
     selected_cities = [city.name for city in user_cities] if user_cities else []
 
     if START_GIF_ID:
