@@ -14,7 +14,7 @@ import random
 
 # Гифки
 LIKED_GIF_ID = os.getenv("LIKED_GIF_ID")
-POSTS_PER_PAGE = 5
+POSTS_PER_PAGE = 5  # Добавляем отсутствующую переменную
 
 router = Router()
 
