@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, insert
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
-from ..models import User, City, user_cities
+from ..models import User, City, Category, user_cities, user_categories
 
 
 class UserRepository:
@@ -41,8 +41,8 @@ class UserRepository:
         """Получить категории пользователя"""
         result = await db.execute(
             select(Category)
-            .join(User.categories)
-            .where(User.id == user_id)
+            .join(user_categories)
+            .where(user_categories.c.user_id == user_id)
         )
         return list(result.scalars().all())
 
@@ -53,7 +53,7 @@ class UserRepository:
             delete(user_categories).where(user_categories.c.user_id == user_id)
         )
         if category_ids:
-            values = [{"user_id": user_id, "category_id": category_id} for category_id in category_ids]
+            values = [{"user_id": user_id, "category_id": cat_id} for cat_id in category_ids]
             await db.execute(
                 insert(user_categories).values(values)
             )
