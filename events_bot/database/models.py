@@ -116,7 +116,7 @@ class Category(Base, TimestampMixin):
         secondary=user_categories, back_populates="categories"
     )
     posts: Mapped[List["Post"]] = relationship(
-        secondary=post_categories, back_populates="posts"
+        secondary=post_categories, back_populates="categories"  # <-- ИСПРАВЛЕНО
     )
 
 
