@@ -3,6 +3,7 @@ from typing import List
 from ..repositories import PostRepository, ModerationRepository
 from ..models import Post, ModerationAction
 from ...utils import get_clean_category_string
+import logfire
 
 
 class ModerationService:
@@ -75,6 +76,21 @@ class ModerationService:
         ])
 
         return "\n".join(lines)
+
+    @staticmethod
+    async def process_moderation_action(db: AsyncSession, post_id: int, action: ModerationAction, moderator_id: int, comment: str = None):
+        """Обработать действие модерации и удалить сообщение из группы"""
+        try:
+            # Выполняем действие модерации
+            result = await PostRepository.update_moderation_status(db, post_id, action, moderator_id, comment)
+            
+            # Записываем в историю модерации
+            await ModerationRepository.create_moderation_action(db, post_id, action, moderator_id, comment)
+            
+            return result
+        except Exception as e:
+            logfire.error(f"Ошибка при обработке действия модерации: {e}")
+            raise
 
     @staticmethod
     def get_action_display_name(action: ModerationAction) -> str:
