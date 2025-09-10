@@ -95,7 +95,7 @@ def get_feed_post_keyboard(
     )
     
     if url:
-        builder.button(text="🔗 Подробнее", url=url)
+        builder.button(text="🔗 Ссылка", url=url)
     
     builder.button(
         text="‹ К списку", callback_data=f"feed_back_{current_page}_{total_pages}"
