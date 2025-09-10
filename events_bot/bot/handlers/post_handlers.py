@@ -315,7 +315,7 @@ async def process_event_datetime(message: Message, state: FSMContext, db):
                 return
 
             await state.update_data(event_at=event_dt.isoformat())
-            await message.answer("📍 Введите адрес мероприятия:")
+            await message.answer("📍 Введите локацию или адрес мероприятия:")
             await state.set_state(PostStates.waiting_for_address)
             return
         except ValueError:
