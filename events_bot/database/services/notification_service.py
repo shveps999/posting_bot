@@ -52,7 +52,8 @@ class NotificationService:
         ]
         if event_str:
             lines.append(f"<i> 🗓 {event_str}</i>")
-        lines.append(f"<i>📍 {post_city}, {address}</i>")
+        lines.append(f"<i>📍 {address}</i>")
+        lines.append(f"<i>🎓 {post_city}</i>")
         lines.append("")
         lines.append(f"{post.content}")
 
