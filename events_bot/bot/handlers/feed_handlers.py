@@ -283,7 +283,9 @@ async def handle_post_heart(callback: CallbackQuery, post_id: int, db, data):
         await callback.answer("❌ Ошибка при сохранении сердечка", show_alert=True)
 
 
-async def show_post_details(callback: CallbackQuery, post_id: int, current_page: int, total_pages: int, db):
+async def show_post_details(
+    callback: CallbackQuery, post_id: int, current_page: int, total_pages: int, db
+):
     post = await PostService.get_post_by_id(db, post_id)
     if not post:
         await callback.answer("Пост не найден", show_alert=True)
@@ -293,15 +295,32 @@ async def show_post_details(callback: CallbackQuery, post_id: int, current_page:
     is_liked = await LikeService.is_post_liked_by_user(db, callback.from_user.id, post.id)
     text = format_post_for_feed(post)
     post_url = getattr(post, "url", None)
-    keyboard = get_feed_post_keyboard(current_page, total_pages, post.id, is_liked, post_url)
+    keyboard = get_feed_post_keyboard(
+        current_page=current_page,
+        total_pages=total_pages,
+        post_id=post.id,
+        is_liked=is_liked,
+        url=post_url
+    )
 
-    if post.image_id and (media_photo := await file_storage.get_media_photo(post.image_id)):
-        await callback.message.edit_media(
-            media=InputMediaPhoto(media=media_photo.media, caption=text, parse_mode="HTML"),
-            reply_markup=keyboard
-        )
-    else:
-        await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    try:
+        # Если у поста есть собственное изображение, редактируем медиа
+        if post.image_id and (media_photo := await file_storage.get_media_photo(post.image_id)):
+            await callback.message.edit_media(
+                media=InputMediaPhoto(media=media_photo.media, caption=text, parse_mode="HTML"),
+                reply_markup=keyboard
+            )
+        # Если у исходного сообщения есть анимация (гифка ленты), редактируем подпись
+        elif callback.message.animation:
+            await callback.message.edit_caption(caption=text, reply_markup=keyboard, parse_mode="HTML")
+        # В противном случае это обычное текстовое сообщение
+        else:
+            await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+            
+    except TelegramBadRequest as e:
+        if "message is not modified" not in str(e):
+            logfire.error(f"Ошибка при показе деталей поста: {e}")
+            await callback.answer("❌ Ошибка интерфейса", show_alert=True)
 
 
 @router.callback_query(F.data.startswith("liked_"))
@@ -327,7 +346,9 @@ async def handle_liked_navigation(callback: CallbackQuery, db):
     await callback.answer()
 
 
-async def show_liked_post_details(callback: CallbackQuery, post_id: int, current_page: int, total_pages: int, db):
+async def show_liked_post_details(
+    callback: CallbackQuery, post_id: int, current_page: int, total_pages: int, db
+):
     post = await PostService.get_post_by_id(db, post_id)
     if not post:
         await callback.answer("Мероприятие не найдено", show_alert=True)
@@ -338,10 +359,18 @@ async def show_liked_post_details(callback: CallbackQuery, post_id: int, current
     text = format_post_for_feed(post)
     keyboard = get_liked_post_keyboard(current_page, total_pages, post.id, is_liked)
 
-    if post.image_id and (media_photo := await file_storage.get_media_photo(post.image_id)):
-        await callback.message.edit_media(
-            media=InputMediaPhoto(media=media_photo.media, caption=text, parse_mode="HTML"),
-            reply_markup=keyboard
-        )
-    else:
-        await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    # Здесь также применяем универсальную логику редактирования
+    try:
+        if post.image_id and (media_photo := await file_storage.get_media_photo(post.image_id)):
+            await callback.message.edit_media(
+                media=InputMediaPhoto(media=media_photo.media, caption=text, parse_mode="HTML"),
+                reply_markup=keyboard
+            )
+        elif callback.message.animation:
+             await callback.message.edit_caption(caption=text, reply_markup=keyboard, parse_mode="HTML")
+        else:
+            await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    except TelegramBadRequest as e:
+        if "message is not modified" not in str(e):
+            logfire.error(f"Ошибка при показе деталей избранного: {e}")
+            await callback.answer("❌ Ошибка интерфейса", show_alert=True)
