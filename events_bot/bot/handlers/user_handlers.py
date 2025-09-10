@@ -89,17 +89,14 @@ async def confirm_city_selection(callback: CallbackQuery, state: FSMContext, db)
         f"Теперь выберите категории интересов для кастомизации уведомлений и подборки:"
     )
     keyboard = get_category_selection_keyboard(categories, selected_cat_ids)
-
-    # ИСПРАВЛЕНИЕ: Проверяем, есть ли у сообщения caption или text
+    
+    # ИСПРАВЛЕНИЕ: Удаляем старое сообщение и отправляем новое, чтобы избежать конфликтов
     try:
-        if callback.message.caption is not None:
-            await callback.message.edit_caption(caption=text_to_send, reply_markup=keyboard)
-        else:
-            await callback.message.edit_text(text=text_to_send, reply_markup=keyboard)
-    except Exception:
-        # Резервный вариант, если редактирование не удалось
-        await callback.message.answer(text=text_to_send, reply_markup=keyboard)
         await callback.message.delete()
+    except Exception:
+        pass
+    
+    await callback.message.answer(text=text_to_send, reply_markup=keyboard)
 
     await state.set_state(UserStates.waiting_for_categories)
     await callback.answer()
@@ -149,6 +146,34 @@ async def handle_notify_heart(callback: CallbackQuery, db):
     except Exception:
         await callback.answer("❌ Ошибка при изменении избранного", show_alert=True)
 
+@router.message(F.text == "/delete_user")
+async def cmd_delete_user(message: Message, db):
+    """Удаление пользователя и всех его данных"""
+    user_id = message.from_user.id
+    logfire.info(f"Пользователь {user_id} запросил удаление аккаунта")
+
+    # Проверяем, существует ли пользователь
+    user = await UserService.register_user(
+        db=db,
+        telegram_id=user_id,
+        username=message.from_user.username,
+        first_name=message.from_user.first_name,
+        last_name=message.from_user.last_name,
+    )
+    if not user:
+        await message.answer("❌ Ваш аккаунт уже удалён или не существует.")
+        return
+
+    # Удаляем пользователя
+    success = await UserService.delete_user(db, user_id)
+    if success:
+        await message.answer(
+            "✅ Ваш аккаунт и все связанные данные (посты, лайки) успешно удалены.\n\n"
+            "Если захотите вернуться — просто начните сначала командой /start",
+            reply_markup=get_main_keyboard()
+        )
+    else:
+        await message.answer("❌ Ошибка при удалении аккаунта. Попробуйте позже.")
 
 @router.message(F.text == "/my_posts")
 async def cmd_my_posts(message: Message, db):
