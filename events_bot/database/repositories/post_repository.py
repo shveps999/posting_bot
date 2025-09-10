@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func, insert, or_, delete
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from ..models import Post, ModerationRecord, ModerationAction, Category, City, post_categories
 from ..models import User, Like
 
@@ -202,7 +202,7 @@ class PostRepository:
         
         result = await db.execute(
             select(Post)
-            .distinct()
+            .group_by(Post.id) # <-- ИЗМЕНЕНИЕ ЗДЕСЬ
             .join(Post.categories)
             .join(Post.cities)
             .where(
