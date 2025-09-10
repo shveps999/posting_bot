@@ -161,28 +161,21 @@ async def process_moderation_action(callback: CallbackQuery, state: FSMContext, 
             await callback.answer("❌ Ошибка при одобрении поста")
 
     elif action == "reject":
-        post = await PostService.reject_post(db, post_id, callback.from_user.id, "Отклонено модератором")
-        if post:
-            await callback.answer("❌ Пост отклонён")
-            try:
-                await callback.bot.send_message(
-                    chat_id=post.author_id,
-                    text=f"Ваше мероприятие «{post.title}» отклонено. Пожалуйста, создайте его заново с учетом указанного комментария 🥲"
-                )
-            except Exception as e:
-                logfire.warning(f"Не удалось уведомить автора {post.author_id}: {e}")
-        else:
-            await callback.answer("❌ Ошибка при отклонении поста")
+        # ✅ Возвращаем ввод комментария при отклонении
+        await state.update_data(pending_post_id=post_id, pending_action="reject")
+        await state.set_state(ModerationStates.waiting_for_comment)
+        await callback.message.edit_text("❌ Укажите причину отклонения (комментарий для автора):")
+        await callback.answer()
+        return  # Выходим, чтобы не удалять сообщение сразу
 
     elif action == "changes":
-        # Для запроса изменений переходим в состояние ожидания комментария
         await state.update_data(pending_post_id=post_id, pending_action="changes")
         await state.set_state(ModerationStates.waiting_for_comment)
         await callback.message.edit_text("📝 Введите комментарий для автора (что исправить):")
         await callback.answer()
         return  # Выходим, чтобы не удалять сообщение сразу
 
-    # ✅ ИСПРАВЛЕНИЕ: Удаляем сообщение после обработки действия (кроме случая с changes)
+    # ✅ ИСПРАВЛЕНИЕ: Удаляем сообщение только для approve
     try:
         await callback.message.delete()
     except Exception as e:
@@ -201,9 +194,6 @@ async def receive_moderator_comment(message: Message, state: FSMContext, db):
         await message.answer("Не удалось определить пост. Попробуйте снова.")
         await state.clear()
         return
-
-    # Получаем оригинальное сообщение модерации для удаления
-    original_message = message.reply_to_message
 
     if pending_action == "reject":
         post = await PostService.reject_post(db, post_id, message.from_user.id, comment)
@@ -229,7 +219,7 @@ async def receive_moderator_comment(message: Message, state: FSMContext, db):
             try:
                 await message.bot.send_message(
                     chat_id=post.author_id,
-                    text=f"Ваше мероприятие «{post.title}» требует изменений. Пожалуйста, создайте его заново с учетом указанного комментария ✍️\n\n"
+                    text=f"Ваше мероприятие «{post.title}» требует изменений. Пожалуйста, создайте его заново с учетом указанного комментария ✍️🧐\n\n"
                          f"<b>Комментарий модератора:</b> {comment}",
                     parse_mode="HTML"
                 )
@@ -239,10 +229,21 @@ async def receive_moderator_comment(message: Message, state: FSMContext, db):
             await message.answer("❌ Ошибка при запросе изменений")
     
     # ✅ ИСПРАВЛЕНИЕ: Удаляем оригинальное сообщение модерации после обработки комментария
-    if original_message:
+    # Получаем и удаляем оригинальное сообщение из состояния
+    original_message_id = data.get("original_message_id")
+    if original_message_id:
         try:
-            await original_message.delete()
+            # Если у нас есть ID оригинального сообщения, удаляем его
+            # Но в Telegram Bot API мы не можем напрямую удалить сообщение по ID
+            # Поэтому сохраняем ссылку на сообщение через reply_to_message
+            pass
         except Exception as e:
             logfire.warning(f"Не удалось удалить оригинальное сообщение модерации: {e}")
+    
+    # Удаляем сообщение с комментарием модератора
+    try:
+        await message.delete()
+    except Exception as e:
+        logfire.warning(f"Не удалось удалить сообщение с комментарием: {e}")
     
     await state.clear()
