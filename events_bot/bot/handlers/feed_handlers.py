@@ -235,6 +235,11 @@ def format_feed_list(posts, current_position_start: int, total_posts: int) -> st
         category_str = get_clean_category_string(post.categories)
         event_at = getattr(post, "event_at", None)
         event_str = event_at.strftime("%d.%m.%Y %H:%M") if event_at else ""
+        
+        # ИСПРАВЛЕНИЕ: Получаем город для каждого поста
+        city_names = [c.name for c in getattr(post, "cities", [])]
+        post_city = ", ".join(city_names) or "Не указан"
+        
         lines.append(f"{idx}. <b>{post.title}</b>")
         lines.append(f"<i>   ⭐️ {category_str}</i>")
         lines.append(f"<i>   🗓 {event_str}</i>")
