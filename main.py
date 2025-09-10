@@ -14,6 +14,7 @@ except Exception:
 import asyncio
 import os
 from contextlib import asynccontextmanager
+from datetime import timezone  # <-- ДОБАВЛЕНА ЭТА СТРОКА
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from events_bot.database import init_database
