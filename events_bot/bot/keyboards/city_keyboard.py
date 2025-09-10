@@ -36,7 +36,7 @@ def get_city_keyboard(
 
     # Кнопка "Выбрать все"
     all_selected = len(selected_ids) == len(all_cities)
-    select_all_text = "Снять все 🗙" if all_selected else "Выбрать все ⭐"
+    select_all_text = "Снять все" if all_selected else "Выбрать все"
     builder.button(text=select_all_text, callback_data=select_all_callback)
 
     builder.adjust(2)
