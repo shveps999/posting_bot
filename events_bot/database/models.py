@@ -116,7 +116,7 @@ class Category(Base, TimestampMixin):
         secondary=user_categories, back_populates="categories"
     )
     posts: Mapped[List["Post"]] = relationship(
-        secondary=post_categories, back_populates="categories"
+        secondary=post_categories, back_populates="posts"
     )
 
 
@@ -134,7 +134,7 @@ class City(Base, TimestampMixin):
         secondary=user_cities, back_populates="cities"
     )
     posts: Mapped[List["Post"]] = relationship(
-        secondary=post_cities, back_populates="posts"
+        secondary=post_cities, back_populates="cities"  # <-- ИСПРАВЛЕНО
     )
 
 
