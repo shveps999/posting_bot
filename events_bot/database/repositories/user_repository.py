@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, delete, insert
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
-from ..models import User, Category, City, user_categories, user_cities
+from ..models import User, Category, City, user_categories, user_cities, post_cities
 from ..models import Post, Like, ModerationRecord, post_categories
 
 
@@ -104,21 +104,35 @@ class UserRepository:
 
     @staticmethod
     async def delete_user(db: AsyncSession, user_id: int) -> bool:
-        """Полное удаление пользователя"""
-        # Удаляем лайки
+        """Полное удаление пользователя (исправленная версия)"""
+        user_to_delete = await db.get(User, user_id)
+        if not user_to_delete:
+            return False # Пользователь не найден
+
+        # 1. Удаляем все, что напрямую ссылается на пользователя (кроме постов)
         await db.execute(delete(Like).where(Like.user_id == user_id))
-        # Удаляем посты
-        post_ids = (await db.execute(select(Post.id).where(Post.author_id == user_id))).scalars().all()
+        await db.execute(delete(ModerationRecord).where(ModerationRecord.moderator_id == user_id))
+        
+        # 2. Находим все посты пользователя
+        posts_result = await db.execute(select(Post.id).where(Post.author_id == user_id))
+        post_ids = posts_result.scalars().all()
+        
         if post_ids:
+            # 3. Удаляем все, что ссылается на его посты
             await db.execute(delete(Like).where(Like.post_id.in_(post_ids)))
             await db.execute(delete(ModerationRecord).where(ModerationRecord.post_id.in_(post_ids)))
             await db.execute(delete(post_categories).where(post_categories.c.post_id.in_(post_ids)))
+            await db.execute(delete(post_cities).where(post_cities.c.post_id.in_(post_ids)))
+            
+            # 4. Удаляем сами посты
             await db.execute(delete(Post).where(Post.id.in_(post_ids)))
-        # Удаляем связи с категориями
+
+        # 5. Удаляем связи пользователя из m2m таблиц
         await db.execute(delete(user_categories).where(user_categories.c.user_id == user_id))
-        # Удаляем связи с городами
         await db.execute(delete(user_cities).where(user_cities.c.user_id == user_id))
-        # Удаляем пользователя
-        result = await db.execute(delete(User).where(User.id == user_id))
+        
+        # 6. Наконец, удаляем самого пользователя
+        await db.delete(user_to_delete)
+        
         await db.commit()
-        return result.rowcount > 0
+        return True
