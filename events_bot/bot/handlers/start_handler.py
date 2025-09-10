@@ -1,5 +1,5 @@
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
 from aiogram.fsm.context import FSMContext
 from events_bot.database.services import UserService, CityService
 from events_bot.bot.states import UserStates
@@ -35,12 +35,22 @@ def register_start_handlers(dp: Router):
 @router.message(F.text == "/start")
 async def cmd_start(message: Message, state: FSMContext, db):
     """Обработчик команды /start"""
-    
-    # Сразу удаляем сообщение /start от пользователя
+    # Удаляем команду /start, отправленную пользователем
     try:
         await message.delete()
     except Exception:
         pass
+
+    # ИСПРАВЛЕНИЕ: Отправляем и сразу удаляем "чистящее" сообщение
+    # Это надежно убирает любые старые клавиатуры и сообщения
+    try:
+        cleanup_message = await message.answer(
+            text="...",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        await cleanup_message.delete()
+    except Exception as e:
+        logfire.warning(f"Не удалось очистить интерфейс: {e}")
 
     # Регистрируем пользователя
     user = await UserService.register_user(
@@ -66,7 +76,6 @@ async def cmd_start(message: Message, state: FSMContext, db):
                 caption="✨ Загружаем Сердце...",
                 parse_mode="HTML"
             )
-            # Передаем новое сообщение с гифкой для редактирования
             await show_city_selection(sent_message, state, db, user_id=message.from_user.id)
             return
         except Exception as e:
@@ -89,10 +98,8 @@ async def show_city_selection(message: Message, state: FSMContext, db, user_id: 
     keyboard = get_city_keyboard(all_cities, selected_ids)
     
     if is_text_based:
-        # Если гифки не было, просто отправляем текстовое сообщение
         await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
     else:
-        # Если была гифка, редактируем ее подпись
         await message.edit_caption(caption=text, reply_markup=keyboard, parse_mode="HTML")
     
     await state.set_state(UserStates.waiting_for_city)
@@ -113,7 +120,6 @@ async def show_main_menu(message: Message):
         except Exception as e:
             logfire.warning(f"Ошибка отправки гифки главного меню: {e}")
 
-    # Резерв: если гифок нет — текстовое меню
     await message.answer(
         "Выберите действие:",
         reply_markup=get_main_keyboard()
