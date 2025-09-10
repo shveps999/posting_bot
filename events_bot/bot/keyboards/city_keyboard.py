@@ -1,83 +1,53 @@
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from typing import List, Optional
+from typing import List
+from events_bot.database.models import City
+
 
 def get_city_keyboard(
-    for_post: bool = False, 
-    selected_cities: Optional[List[str]] = None,
-    for_user: bool = False  # Новый параметр для выбора города пользователя
+    all_cities: List[City],
+    selected_ids: List[int] = None,
+    for_post: bool = False
 ) -> InlineKeyboardMarkup:
-    """Инлайн-клавиатура для выбора городов (университетов)"""
-    cities = [
-        "УрФУ", "УГМУ", "УрГЭУ", "УрГПУ",
-        "УрГЮУ", "УГГУ", "УрГУПС", "УрГАХУ",
-        "УрГАУ", "РГППУ", "РАНХиГС"
-    ]
-    
-    if selected_cities is None:
-        selected_cities = []
-        
+    """Инлайн-клавиатура для множественного выбора городов (университетов)"""
+    if selected_ids is None:
+        selected_ids = []
+
     builder = InlineKeyboardBuilder()
-    
-    # Используем разные префиксы для разных контекстов
+
+    # Определяем callback_data в зависимости от контекста
     if for_post:
         prefix = "post_city_"
-    elif for_user:
-        prefix = "user_city_"
+        select_all_callback = "post_city_select_all"
+        confirm_callback = "post_city_confirm"
+        cancel_callback = "cancel_post"
     else:
         prefix = "city_"
-    
-    if for_post or for_user:
-        # Добавляем все города с чекбоксами
-        for city in cities:
-            is_selected = city in selected_cities
-            checkbox = "⭐️" if is_selected else ""
-            text = f"{city} {checkbox}".strip()
-            builder.button(text=text, callback_data=f"{prefix}{city}")
-            
-        # Кнопка "Выбрать все" — сразу после городов
-        all_selected = len(selected_cities) == len(cities)
-        select_all_text = "Выбрать все ⭐️" if all_selected else "Выбрать все"
-        
-        if for_post:
-            builder.button(
-                text=select_all_text,
-                callback_data="post_city_select_all"
-            )
-        elif for_user:
-            builder.button(
-                text=select_all_text,
-                callback_data="user_city_select_all"
-            )
-            
-        # Располагаем все кнопки (города + "Выбрать все") по 2 в ряд
-        builder.adjust(2)
-        
-        # Кнопки "Подтвердить" и "Отменить" — всегда видны
-        if for_post:
-            builder.row(
-                InlineKeyboardButton(
-                    text="Подтвердить ✓", 
-                    callback_data="post_city_confirm"
-                )
-            )
-            builder.row(
-                InlineKeyboardButton(
-                    text="Отменить ×", 
-                    callback_data="cancel_post"
-                )
-            )
-        elif for_user:
-            builder.row(
-                InlineKeyboardButton(
-                    text="Подтвердить ✓", 
-                    callback_data="user_city_confirm"
-                )
-            )
-    else:
-        # Для выбора города пользователя (одиночный выбор) - старое поведение
-        for city in cities:
-            builder.button(text=city, callback_data=f"{prefix}{city}")
-        builder.adjust(2)
-        
+        select_all_callback = "user_city_select_all"
+        confirm_callback = "confirm_cities"
+        cancel_callback = "main_menu"  # Для отмены настройки профиля
+
+    # Кнопки городов
+    for city in all_cities:
+        is_selected = city.id in selected_ids
+        checkbox = "⭐️" if is_selected else ""
+        text = f"{city.name} {checkbox}".strip()
+        builder.button(text=text, callback_data=f"{prefix}{city.id}")
+
+    # Кнопка "Выбрать все"
+    all_selected = len(selected_ids) == len(all_cities)
+    select_all_text = "Снять все 🗙" if all_selected else "Выбрать все ⭐"
+    builder.button(text=select_all_text, callback_data=select_all_callback)
+
+    builder.adjust(2)
+
+    # Кнопки "Подтвердить" и "Отменить"
+    builder.row(
+        InlineKeyboardButton(text="Подтвердить ✓", callback_data=confirm_callback)
+    )
+    if for_post:
+        builder.row(
+            InlineKeyboardButton(text="Отменить ×", callback_data=cancel_callback)
+        )
+
     return builder.as_markup()
