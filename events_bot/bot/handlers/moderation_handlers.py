@@ -167,7 +167,7 @@ async def process_moderation_action(callback: CallbackQuery, state: FSMContext, 
             try:
                 await callback.bot.send_message(
                     chat_id=post.author_id,
-                    text=f"Ваше мероприятие «{post.title}» отклонено модератором ❌"
+                    text=f"Ваше мероприятие «{post.title}» отклонено. Пожалуйста, создайте его заново с учетом указанного комментария 🥲"
                 )
             except Exception as e:
                 logfire.warning(f"Не удалось уведомить автора {post.author_id}: {e}")
