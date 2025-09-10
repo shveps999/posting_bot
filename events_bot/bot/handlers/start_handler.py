@@ -1,29 +1,46 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-from events_bot.database.services import UserService, CategoryService
+from events_bot.database.services import UserService, CityService
 from events_bot.bot.states import UserStates
-from events_bot.bot.keyboards import get_city_keyboard, get_category_selection_keyboard
-import logfire
+from events_bot.bot.keyboards import get_city_keyboard, get_main_keyboard
 import os
+import random
+import logfire
 
 router = Router()
 
-# Добавляем константу POSTS_PER_PAGE
-POSTS_PER_PAGE = 5
+# Получаем file_id гифок из переменных окружения
+MAIN_MENU_GIF_IDS = [
+    os.getenv("MAIN_MENU_GIF_ID_1"),
+    os.getenv("MAIN_MENU_GIF_ID_2"),
+    os.getenv("MAIN_MENU_GIF_ID_3"),
+    os.getenv("MAIN_MENU_GIF_ID_4"),
+    os.getenv("MAIN_MENU_GIF_ID_5"),
+    os.getenv("MAIN_MENU_GIF_ID_6"),
+]
 
-# Добавляем отсутствующую переменную
-MAIN_MENU_GIF_IDS = os.getenv("MAIN_MENU_GIF_IDS", "").split(",") if os.getenv("MAIN_MENU_GIF_IDS") else []
+# Гифка при старте
+START_GIF_ID = os.getenv("START_GIF_ID")
+
+# Очистка: убираем None
+MAIN_MENU_GIF_IDS = [gif_id for gif_id in MAIN_MENU_GIF_IDS if gif_id]
+
 
 def register_start_handlers(dp: Router):
-    """Регистрация обработчиков стартового экрана"""
+    """Регистрация обработчиков команды start"""
     dp.include_router(router)
+
 
 @router.message(F.text == "/start")
 async def cmd_start(message: Message, state: FSMContext, db):
     """Обработчик команды /start"""
-    logfire.info(f"Пользователь {message.from_user.id} начал работу с ботом")
-    
+    # Удаляем команду
+    try:
+        await message.delete()
+    except Exception:
+        pass
+
     # Регистрируем пользователя
     user = await UserService.register_user(
         db=db,
@@ -32,103 +49,92 @@ async def cmd_start(message: Message, state: FSMContext, db):
         first_name=message.from_user.first_name,
         last_name=message.from_user.last_name,
     )
-    
-    # Проверяем, есть ли у пользователя уже выбранные города
+
+    # Если пользователь уже настроил профиль — показываем главное меню
     user_cities = await UserService.get_user_cities(db, message.from_user.id)
-    
-    if user_cities:
-        # Если города уже выбраны, переходим к выбору категорий
-        categories = await CategoryService.get_all_categories(db)
-        await message.answer(
-            "👋 Добро пожаловать в Сердце Екатеринбурга!\n"
-            "Теперь выберите категории интересов для кастомизации уведомлений и подборки:",
-            reply_markup=get_category_selection_keyboard(categories),
-        )
-        await state.set_state(UserStates.waiting_for_categories)
-    else:
-        # Если городов нет, предлагаем выбрать города
-        await message.answer(
-            "👋 Добро пожаловать в Сердце Екатеринбурга!\n"
-            "Выберите города для получения уведомлений и подборки:",
-            reply_markup=get_city_keyboard(for_user=True)
-        )
-        await state.set_state(UserStates.waiting_for_cities)
-
-@router.callback_query(F.data.startswith("user_city_"))
-async def process_user_city_selection(callback: CallbackQuery, state: FSMContext):
-    """Обработка выбора города пользователя"""
-    city = callback.data[10:]  # Убираем префикс "user_city_"
-    
-    # Получаем текущие выбранные города
-    data = await state.get_data()
-    selected_cities = data.get("selected_cities", [])
-    
-    # Добавляем или удаляем город из выбранных
-    if city in selected_cities:
-        selected_cities.remove(city)
-    else:
-        selected_cities.append(city)
-        
-    await state.update_data(selected_cities=selected_cities)
-    
-    # Обновляем клавиатуру с обработкой ошибки "message is not modified"
-    try:
-        await callback.message.edit_reply_markup(
-            reply_markup=get_city_keyboard(for_user=True, selected_cities=selected_cities)
-        )
-    except Exception as e:
-        if "message is not modified" not in str(e):
-            raise
-    
-    await callback.answer()
-
-@router.callback_query(F.data == "user_city_select_all")
-async def select_all_user_cities(callback: CallbackQuery, state: FSMContext):
-    """Выбрать все города для пользователя"""
-    cities = [
-        "УрФУ", "УГМУ", "УрГЭУ", "УрГПУ",
-        "УрГЮУ", "УГГУ", "УрГУПС", "УрГАХУ",
-        "УрГАУ", "РГППУ", "РАНХиГС"
-    ]
-    
-    await state.update_data(selected_cities=cities)
-    
-    # Обновляем клавиатуру с обработкой ошибки "message is not modified"
-    try:
-        await callback.message.edit_reply_markup(
-            reply_markup=get_city_keyboard(for_user=True, selected_cities=cities)
-        )
-    except Exception as e:
-        if "message is not modified" not in str(e):
-            raise
-    
-    await callback.answer()
-
-@router.callback_query(F.data == "user_city_confirm")
-async def confirm_user_cities(callback: CallbackQuery, state: FSMContext, db):
-    """Подтвердить выбор городов пользователя"""
-    data = await state.get_data()
-    selected_cities = data.get("selected_cities", [])
-    
-    if not selected_cities:
-        await callback.answer("❌ Выберите хотя бы один город!")
+    user_categories = await UserService.get_user_categories(db, message.from_user.id)
+    if user_cities and user_categories:
+        await show_main_menu(message)
         return
+
+    # Отправляем гифку START_GIF
+    if START_GIF_ID:
+        try:
+            sent = await message.answer_animation(
+                animation=START_GIF_ID,
+                caption="✨ Загружаем Сердце...",
+                parse_mode="HTML"
+            )
+            await state.update_data(start_gif_message_id=sent.message_id)
+            await show_city_selection(sent, state, db)
+            return
+        except Exception as e:
+            logfire.warning(f"Ошибка отправки START_GIF: {e}")
+
+    # Резерв: без гифки
+    await show_city_selection(message, state, db)
+
+
+async def show_city_selection(message: Message, state: FSMContext, db):
+    """Показать выбор города, отредактировав сообщение"""
+    all_cities = await CityService.get_all_cities(db)
+    user_cities = await UserService.get_user_cities(db, message.chat.id)
+    selected_ids = [c.id for c in user_cities]
+
+    text = (
+        "Бот поможет быть в курсе актуальных и интересных мероприятий твоего ВУЗа по выбранным категориям интересов. А еще здесь можно создать свое мероприятие. Начнем!\n\n"
+        "Для начала выберите ваши университеты:"
+    )
+    keyboard = get_city_keyboard(all_cities, selected_ids)
     
-    # Сохраняем выбранные города
-    await UserService.update_user_cities(db, callback.from_user.id, selected_cities)
+    try:
+        if message.caption is not None:
+             await message.edit_caption(caption=text, reply_markup=keyboard, parse_mode="HTML")
+        else:
+             await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
+             if message.text: # если это было текстовое сообщение, а не гифка
+                 await message.delete()
+    except Exception as e:
+        logfire.error(f"Ошибка при показе выбора города: {e}")
     
-    # Переходим к выбору категорий
-    categories = await CategoryService.get_all_categories(db)
+    await state.set_state(UserStates.waiting_for_city)
+
+
+async def show_main_menu(message: Message):
+    """Отправить главное меню — гифка с подписью и кнопками"""
+    if MAIN_MENU_GIF_IDS:
+        selected_gif = random.choice(MAIN_MENU_GIF_IDS)
+        try:
+            # ✅ Отправляем гифку с подписью и клавиатурой
+            await message.answer_animation(
+                animation=selected_gif,
+                caption="",
+                parse_mode="HTML",
+                reply_markup=get_main_keyboard()
+            )
+            return
+        except Exception as e:
+            logfire.warning(f"Ошибка отправки гифки главного меню: {e}")
+
+    # Резерв: если гифок нет — текстовое меню
+    await message.answer(
+        "Выберите действие:",
+        reply_markup=get_main_keyboard()
+    )
+
+
+@router.message(F.text.in_(["/menu", "/main_menu"]))
+async def cmd_main_menu(message: Message):
+    """Обработчик команды /menu"""
+    await show_main_menu(message)
+
+
+@router.callback_query(F.data == "main_menu")
+async def callback_main_menu(callback: CallbackQuery):
+    """Обработчик кнопки «🏠 Главное меню»"""
     try:
         await callback.message.delete()
-        await callback.message.answer(
-            f"📍 Города {', '.join(selected_cities)} выбраны!\n"
-            "Теперь выберите категории интересов для кастомизации уведомлений и подборки:",
-            reply_markup=get_category_selection_keyboard(categories),
-        )
-    except Exception as e:
-        if "message is not modified" not in str(e):
-            raise
-    
-    await state.set_state(UserStates.waiting_for_categories)
+    except Exception:
+        pass
+    await show_main_menu(callback.message)
     await callback.answer()
