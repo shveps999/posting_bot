@@ -84,11 +84,23 @@ async def confirm_city_selection(callback: CallbackQuery, state: FSMContext, db)
     user_categories = await UserService.get_user_categories(db, callback.from_user.id)
     selected_cat_ids = [cat.id for cat in user_categories]
 
-    await callback.message.edit_text(
+    text_to_send = (
         f"📍 Университеты выбраны: {city_names}\n\n"
-        f"Теперь выберите категории интересов для кастомизации уведомлений и подборки:",
-        reply_markup=get_category_selection_keyboard(categories, selected_cat_ids),
+        f"Теперь выберите категории интересов для кастомизации уведомлений и подборки:"
     )
+    keyboard = get_category_selection_keyboard(categories, selected_cat_ids)
+
+    # ИСПРАВЛЕНИЕ: Проверяем, есть ли у сообщения caption или text
+    try:
+        if callback.message.caption is not None:
+            await callback.message.edit_caption(caption=text_to_send, reply_markup=keyboard)
+        else:
+            await callback.message.edit_text(text=text_to_send, reply_markup=keyboard)
+    except Exception:
+        # Резервный вариант, если редактирование не удалось
+        await callback.message.answer(text=text_to_send, reply_markup=keyboard)
+        await callback.message.delete()
+
     await state.set_state(UserStates.waiting_for_categories)
     await callback.answer()
 
