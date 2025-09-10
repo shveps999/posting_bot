@@ -15,7 +15,7 @@ def get_post_notification_keyboard(
         callback_data=f"notify_heart_{post_id}"
     )
     if url:
-        builder.button(text="🔗 Подробнее", url=url)
+        builder.button(text="🔗 Ссылка", url=url)
     builder.button(text="💌 Главное меню", callback_data="main_menu")
 
     if url:
