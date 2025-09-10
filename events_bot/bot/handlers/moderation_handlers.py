@@ -1,5 +1,4 @@
 from aiogram import Router, F
-from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 import logfire
@@ -42,10 +41,11 @@ async def cmd_moderation(message: Message, db):
     logfire.info(f"Найдено {len(pending_posts)} постов на модерации")
     response = "Посты на модерации:\n\n"
     for post in pending_posts:
-        await db.refresh(post, attribute_names=["author", "categories"])
+        await db.refresh(post, attribute_names=["author", "categories", "cities"])
         category_names = [cat.name for cat in post.categories] if post.categories else ['Неизвестно']
+        city_names = [c.name for c in post.cities] if post.cities else ['Не указан']
         category_str = ', '.join(category_names)
-        post_city = getattr(post, 'city', 'Не указан')
+        post_city = ', '.join(city_names)
         response += f"{post.title}\n"
         response += f"Город: {post_city}\n"
         response += f"{post.author.first_name or post.author.username}\n"
@@ -74,10 +74,11 @@ async def show_moderation_queue_callback(callback: CallbackQuery, db):
     logfire.info(f"Найдено {len(pending_posts)} постов на модерации")
     response = "Посты на модерации:\n\n"
     for post in pending_posts:
-        await db.refresh(post, attribute_names=["author", "categories"])
+        await db.refresh(post, attribute_names=["author", "categories", "cities"])
         category_names = [cat.name for cat in post.categories] if post.categories else ['Неизвестно']
+        city_names = [c.name for c in post.cities] if post.cities else ['Не указан']
         category_str = ', '.join(category_names)
-        post_city = getattr(post, 'city', 'Не указан')
+        post_city = ', '.join(city_names)
         response += f"{post.title}\n"
         response += f"Город: {post_city}\n"
         response += f"{post.author.first_name or post.author.username}\n"
@@ -108,10 +109,11 @@ async def refresh_moderation_queue(callback: CallbackQuery, db):
     logfire.info(f"Обновлено: найдено {len(pending_posts)} постов на модерации")
     response = "Посты на модерации:\n\n"
     for post in pending_posts:
-        await db.refresh(post, attribute_names=["author", "categories"])
+        await db.refresh(post, attribute_names=["author", "categories", "cities"])
         category_names = [cat.name for cat in post.categories] if post.categories else ['Неизвестно']
+        city_names = [c.name for c in post.cities] if post.cities else ['Не указан']
         category_str = ', '.join(category_names)
-        post_city = getattr(post, 'city', 'Не указан')
+        post_city = ', '.join(city_names)
         response += f"{post.title}\n"
         response += f"Город: {post_city}\n"
         response += f"{post.author.first_name or post.author.username}\n"
@@ -136,24 +138,15 @@ async def process_moderation_action(callback: CallbackQuery, state: FSMContext, 
     if action == "approve":
         post = await PostService.approve_post(db, post_id, callback.from_user.id)
         if post:
-            # Публикуем пост
             post = await PostService.publish_post(db, post_id)
-            await db.refresh(post, attribute_names=["author", "categories"])
+            await db.refresh(post, attribute_names=["author", "categories", "cities"])
             logfire.info(f"Пост {post_id} одобрен и опубликован модератором {callback.from_user.id}")
             
-            # Отправляем уведомления пользователям
-            users_to_notify = await NotificationService.get_users_to_notify(
-                db, post
-            )
+            users_to_notify = await NotificationService.get_users_to_notify(db, post)
             logfire.info(f"Отправляем уведомления {len(users_to_notify)} пользователям")
             await NotificationService.send_post_notification(
-                bot=callback.bot,
-                post=post,
-                users=users_to_notify,
-                db=db
+                bot=callback.bot, post=post, users=users_to_notify, db=db
             )
-
-            # Уведомляем автора
             try:
                 await callback.bot.send_message(
                     chat_id=post.author_id,
@@ -169,14 +162,12 @@ async def process_moderation_action(callback: CallbackQuery, state: FSMContext, 
             await callback.answer("❌ Ошибка при одобрении поста")
 
     elif action == "reject":
-        # Спрашиваем комментарий у модератора
         await state.update_data(pending_post_id=post_id, pending_action="reject")
         await state.set_state(ModerationStates.waiting_for_comment)
         await callback.message.edit_text("❌ Укажите причину отклонения (комментарий для автора):")
         await callback.answer()
 
     elif action == "changes":
-        # Спрашиваем комментарий у модератора
         await state.update_data(pending_post_id=post_id)
         await state.set_state(ModerationStates.waiting_for_comment)
         await callback.message.edit_text("📝 Введите комментарий для автора (что исправить):")
