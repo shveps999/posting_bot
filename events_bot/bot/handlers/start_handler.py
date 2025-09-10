@@ -35,7 +35,8 @@ def register_start_handlers(dp: Router):
 @router.message(F.text == "/start")
 async def cmd_start(message: Message, state: FSMContext, db):
     """Обработчик команды /start"""
-    # Удаляем команду
+    
+    # Сразу удаляем сообщение /start от пользователя
     try:
         await message.delete()
     except Exception:
@@ -57,28 +58,28 @@ async def cmd_start(message: Message, state: FSMContext, db):
         await show_main_menu(message)
         return
 
-    # Отправляем гифку START_GIF
+    # Отправляем гифку START_GIF, если она есть
     if START_GIF_ID:
         try:
-            sent = await message.answer_animation(
+            sent_message = await message.answer_animation(
                 animation=START_GIF_ID,
                 caption="✨ Загружаем Сердце...",
                 parse_mode="HTML"
             )
-            await state.update_data(start_gif_message_id=sent.message_id)
-            await show_city_selection(sent, state, db)
+            # Передаем новое сообщение с гифкой для редактирования
+            await show_city_selection(sent_message, state, db, user_id=message.from_user.id)
             return
         except Exception as e:
             logfire.warning(f"Ошибка отправки START_GIF: {e}")
 
-    # Резерв: без гифки
-    await show_city_selection(message, state, db)
+    # Резервный вариант без гифки: просто отправляем новое сообщение
+    await show_city_selection(message, state, db, user_id=message.from_user.id, is_text_based=True)
 
 
-async def show_city_selection(message: Message, state: FSMContext, db):
-    """Показать выбор города, отредактировав сообщение"""
+async def show_city_selection(message: Message, state: FSMContext, db, user_id: int, is_text_based: bool = False):
+    """Показать выбор города, отредактировав сообщение или отправив новое"""
     all_cities = await CityService.get_all_cities(db)
-    user_cities = await UserService.get_user_cities(db, message.chat.id)
+    user_cities = await UserService.get_user_cities(db, user_id)
     selected_ids = [c.id for c in user_cities]
 
     text = (
@@ -87,15 +88,12 @@ async def show_city_selection(message: Message, state: FSMContext, db):
     )
     keyboard = get_city_keyboard(all_cities, selected_ids)
     
-    try:
-        if message.caption is not None:
-             await message.edit_caption(caption=text, reply_markup=keyboard, parse_mode="HTML")
-        else:
-             await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
-             if message.text: # если это было текстовое сообщение, а не гифка
-                 await message.delete()
-    except Exception as e:
-        logfire.error(f"Ошибка при показе выбора города: {e}")
+    if is_text_based:
+        # Если гифки не было, просто отправляем текстовое сообщение
+        await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
+    else:
+        # Если была гифка, редактируем ее подпись
+        await message.edit_caption(caption=text, reply_markup=keyboard, parse_mode="HTML")
     
     await state.set_state(UserStates.waiting_for_city)
 
@@ -105,7 +103,6 @@ async def show_main_menu(message: Message):
     if MAIN_MENU_GIF_IDS:
         selected_gif = random.choice(MAIN_MENU_GIF_IDS)
         try:
-            # ✅ Отправляем гифку с подписью и клавиатурой
             await message.answer_animation(
                 animation=selected_gif,
                 caption="",
