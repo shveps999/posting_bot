@@ -5,6 +5,7 @@ from .database import (
     Category,
     Post,
     ModerationRecord,
+    City,
     # Database connection
     create_async_engine_and_session,
     create_tables,
@@ -14,6 +15,7 @@ from .database import (
     CategoryRepository,
     PostRepository,
     ModerationRepository,
+    CityRepository,
     # Initialization
     init_database,
 )
@@ -25,6 +27,7 @@ __all__ = [
     "Category",
     "Post",
     "ModerationRecord",
+    "City",
     # Database connection
     "create_async_engine_and_session",
     "create_tables",
@@ -34,6 +37,7 @@ __all__ = [
     "CategoryRepository",
     "PostRepository",
     "ModerationRepository",
+    "CityRepository",
     # Initialization
     "init_database",
 ]
