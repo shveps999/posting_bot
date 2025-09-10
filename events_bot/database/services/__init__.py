@@ -4,6 +4,7 @@ from .post_service import PostService
 from .notification_service import NotificationService
 from .moderation_service import ModerationService
 from .like_service import LikeService
+from .city_service import CityService
 
 __all__ = [
     "UserService",
@@ -12,4 +13,5 @@ __all__ = [
     "NotificationService",
     "ModerationService",
     "LikeService",
+    "CityService",
 ]
