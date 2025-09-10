@@ -35,24 +35,16 @@ def register_start_handlers(dp: Router):
 @router.message(F.text == "/start")
 async def cmd_start(message: Message, state: FSMContext, db):
     """Обработчик команды /start"""
-    # Удаляем команду /start, отправленную пользователем
+    # 1. Удаляем команду /start, отправленную пользователем
     try:
         await message.delete()
     except Exception:
         pass
 
-    # ИСПРАВЛЕНИЕ: Отправляем и сразу удаляем "чистящее" сообщение
-    # Это надежно убирает любые старые клавиатуры и сообщения
-    try:
-        cleanup_message = await message.answer(
-            text="...",
-            reply_markup=ReplyKeyboardRemove()
-        )
-        await cleanup_message.delete()
-    except Exception as e:
-        logfire.warning(f"Не удалось очистить интерфейс: {e}")
+    # 2. Отправляем приветственное сообщение, которое остается в чате
+    await message.answer("👋 Добро пожаловать в Сердце!")
 
-    # Регистрируем пользователя
+    # 3. Регистрируем пользователя
     user = await UserService.register_user(
         db=db,
         telegram_id=message.from_user.id,
@@ -61,32 +53,30 @@ async def cmd_start(message: Message, state: FSMContext, db):
         last_name=message.from_user.last_name,
     )
 
-    # Если пользователь уже настроил профиль — показываем главное меню
+    # 4. Если пользователь уже настроил профиль — показываем главное меню
     user_cities = await UserService.get_user_cities(db, message.from_user.id)
     user_categories = await UserService.get_user_categories(db, message.from_user.id)
     if user_cities and user_categories:
         await show_main_menu(message)
         return
 
-    # Отправляем гифку START_GIF, если она есть
+    # 5. Показываем выбор города (это будет новое, отдельное сообщение)
     if START_GIF_ID:
         try:
             sent_message = await message.answer_animation(
-                animation=START_GIF_ID,
-                caption="✨ Загружаем Сердце...",
-                parse_mode="HTML"
+                animation=START_GIF_ID
             )
             await show_city_selection(sent_message, state, db, user_id=message.from_user.id)
             return
         except Exception as e:
             logfire.warning(f"Ошибка отправки START_GIF: {e}")
 
-    # Резервный вариант без гифки: просто отправляем новое сообщение
+    # Резервный вариант без гифки
     await show_city_selection(message, state, db, user_id=message.from_user.id, is_text_based=True)
 
 
 async def show_city_selection(message: Message, state: FSMContext, db, user_id: int, is_text_based: bool = False):
-    """Показать выбор города, отредактировав сообщение или отправив новое"""
+    """Показать выбор города, отредактировав сообщение с гифкой или отправив новое"""
     all_cities = await CityService.get_all_cities(db)
     user_cities = await UserService.get_user_cities(db, user_id)
     selected_ids = [c.id for c in user_cities]
@@ -100,6 +90,7 @@ async def show_city_selection(message: Message, state: FSMContext, db, user_id: 
     if is_text_based:
         await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
     else:
+        # Редактируем подпись к уже отправленной гифке
         await message.edit_caption(caption=text, reply_markup=keyboard, parse_mode="HTML")
     
     await state.set_state(UserStates.waiting_for_city)
