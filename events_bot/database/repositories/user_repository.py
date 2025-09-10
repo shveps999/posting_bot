@@ -1,140 +1,124 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_
-from sqlalchemy.orm import selectinload  # Добавлен импорт
+from sqlalchemy import select, and_, delete, insert
+from sqlalchemy.orm import selectinload
 from typing import List, Optional
-from ..models import User, Category, user_categories
-import json
+from ..models import User, Category, City, user_categories, user_cities
+from ..models import Post, Like, ModerationRecord, post_categories
+
 
 class UserRepository:
     """Асинхронный репозиторий для работы с пользователями"""
-    
+
     @staticmethod
-    async def get_user(db: AsyncSession, telegram_id: int) -> Optional[User]:
-        """Получить пользователя по Telegram ID"""
+    async def get_by_telegram_id(db: AsyncSession, telegram_id: int) -> Optional[User]:
         result = await db.execute(select(User).where(User.id == telegram_id))
         return result.scalar_one_or_none()
-    
+
     @staticmethod
     async def create_user(
         db: AsyncSession,
         telegram_id: int,
-        username: Optional[str] = None,
-        first_name: Optional[str] = None,
-        last_name: Optional[str] = None,
-        cities: Optional[List[str]] = None
+        username: str = None,
+        first_name: str = None,
+        last_name: str = None,
     ) -> User:
-        """Создать нового пользователя"""
-        cities_str = json.dumps(cities) if cities else None
         user = User(
             id=telegram_id,
             username=username,
             first_name=first_name,
             last_name=last_name,
-            cities=cities_str
         )
         db.add(user)
         await db.commit()
         await db.refresh(user)
         return user
-    
+
     @staticmethod
-    async def update_user_cities(db: AsyncSession, user_id: int, cities: List[str]) -> User:
-        """Обновить список городов пользователя"""
-        result = await db.execute(select(User).where(User.id == user_id))
-        user = result.scalar_one_or_none()
-        if user:
-            user.cities = json.dumps(cities) if cities else None
-            await db.commit()
-            await db.refresh(user)
+    async def get_or_create_user(
+        db: AsyncSession,
+        telegram_id: int,
+        username: str = None,
+        first_name: str = None,
+        last_name: str = None,
+    ) -> User:
+        user = await UserRepository.get_by_telegram_id(db, telegram_id)
+        if not user:
+            user = await UserRepository.create_user(
+                db, telegram_id, username, first_name, last_name
+            )
         return user
-    
+
     @staticmethod
-    async def get_user_cities(db: AsyncSession, user_id: int) -> List[str]:
-        """Получить список городов пользователя"""
-        result = await db.execute(select(User.cities).where(User.id == user_id))
-        cities_str = result.scalar_one_or_none()
-        if cities_str:
-            try:
-                return json.loads(cities_str)
-            except (json.JSONDecodeError, TypeError):
-                return []
-        return []
-    
-    @staticmethod
-    async def update_user(db: AsyncSession, user: User) -> User:
-        """Обновить пользователя"""
+    async def add_categories_to_user(
+        db: AsyncSession, user_id: int, category_ids: List[int]
+    ) -> User:
+        await db.execute(
+            delete(user_categories).where(user_categories.c.user_id == user_id)
+        )
+        if category_ids:
+            values = [
+                {"user_id": user_id, "category_id": category_id}
+                for category_id in category_ids
+            ]
+            await db.execute(insert(user_categories).values(values))
         await db.commit()
-        await db.refresh(user)
-        return user
-    
-    @staticmethod
-    async def delete_user(db: AsyncSession, user_id: int) -> bool:
-        """Удалить пользователя"""
-        result = await db.execute(select(User).where(User.id == user_id))
-        user = result.scalar_one_or_none()
-        if user:
-            await db.delete(user)
-            await db.commit()
-            return True
-        return False
-    
-    @staticmethod
-    async def select_categories(db: AsyncSession, user_id: int, category_ids: List[int]) -> User:
-        """Выбрать категории для пользователя"""
-        # Получаем пользователя с уже загруженными категориями
         result = await db.execute(
             select(User)
             .where(User.id == user_id)
-            .options(selectinload(User.categories))  # Явно загружаем категории
+            .options(selectinload(User.categories))
         )
-        user = result.scalar_one_or_none()
-        if user:
-            # Получаем категории по ID
-            categories_result = await db.execute(
-                select(Category).where(Category.id.in_(category_ids))
-            )
-            categories = categories_result.scalars().all()
-            # Устанавливаем категории напрямую через атрибут
-            user.categories = categories
-            await db.commit()
-            await db.refresh(user)
-        return user
-    
+        return result.scalar_one_or_none()
+
     @staticmethod
-    async def get_user_categories(db: AsyncSession, user_id: int) -> List[Category]:
-        """Получить категории пользователя"""
+    async def add_cities_to_user(
+        db: AsyncSession, user_id: int, city_ids: List[int]
+    ) -> User:
+        await db.execute(
+            delete(user_cities).where(user_cities.c.user_id == user_id)
+        )
+        if city_ids:
+            values = [
+                {"user_id": user_id, "city_id": city_id} for city_id in city_ids
+            ]
+            await db.execute(insert(user_cities).values(values))
+        await db.commit()
         result = await db.execute(
-            select(User)
-            .where(User.id == user_id)
-            .options(selectinload(User.categories))  # Теперь selectinload определен
+            select(User).where(User.id == user_id).options(selectinload(User.cities))
         )
-        user = result.scalar_one_or_none()
-        return user.categories if user else []
-    
+        return result.scalar_one_or_none()
+
     @staticmethod
-    async def get_users_by_city_and_categories(
-        db: AsyncSession, 
-        cities: List[str], 
-        category_ids: List[int]
+    async def get_users_by_cities_and_categories(
+        db: AsyncSession, city_ids: List[int], category_ids: List[int]
     ) -> List[User]:
-        """Получить пользователей по городам и категориям"""
-        if not cities or not category_ids:
-            return []
-            
-        # Создаем условия для поиска по городам
-        city_conditions = []
-        for city in cities:
-            city_conditions.append(User.cities.contains(f'"{city}"'))
-            
         result = await db.execute(
             select(User)
+            .distinct()
+            .join(User.cities)
+            .join(User.categories)
             .where(
-                and_(
-                    or_(*city_conditions),
-                    User.categories.any(Category.id.in_(category_ids)),
-                    User.is_active == True
-                )
+                and_(City.id.in_(city_ids), Category.id.in_(category_ids))
             )
-            .options(selectinload(User.categories))  # Теперь selectinload определен
         )
         return result.scalars().all()
+
+    @staticmethod
+    async def delete_user(db: AsyncSession, user_id: int) -> bool:
+        """Полное удаление пользователя"""
+        # Удаляем лайки
+        await db.execute(delete(Like).where(Like.user_id == user_id))
+        # Удаляем посты
+        post_ids = (await db.execute(select(Post.id).where(Post.author_id == user_id))).scalars().all()
+        if post_ids:
+            await db.execute(delete(Like).where(Like.post_id.in_(post_ids)))
+            await db.execute(delete(ModerationRecord).where(ModerationRecord.post_id.in_(post_ids)))
+            await db.execute(delete(post_categories).where(post_categories.c.post_id.in_(post_ids)))
+            await db.execute(delete(Post).where(Post.id.in_(post_ids)))
+        # Удаляем связи с категориями
+        await db.execute(delete(user_categories).where(user_categories.c.user_id == user_id))
+        # Удаляем связи с городами
+        await db.execute(delete(user_cities).where(user_cities.c.user_id == user_id))
+        # Удаляем пользователя
+        result = await db.execute(delete(User).where(User.id == user_id))
+        await db.commit()
+        return result.rowcount > 0
