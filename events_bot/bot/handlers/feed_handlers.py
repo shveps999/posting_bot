@@ -127,7 +127,7 @@ async def handle_feed_navigation(callback: CallbackQuery, db):
             total_pages = int(data[4])
             await handle_post_heart(callback, post_id, db, data)
     except Exception as e:
-        logfire.exception("Ошибка навигации по ленте {e}", e=e)
+        logfire.exception(f"Ошибка навигации по ленте: {e}")
     await callback.answer()
 
 
@@ -303,24 +303,29 @@ async def show_post_details(
         url=post_url
     )
 
+    # ИСПРАВЛЕНИЕ: Удаляем старое сообщение и отправляем новое
     try:
-        # Если у поста есть собственное изображение, редактируем медиа
+        await callback.message.delete()
+    except Exception as e:
+        logfire.warning(f"Не удалось удалить сообщение при показе деталей: {e}")
+
+    try:
         if post.image_id and (media_photo := await file_storage.get_media_photo(post.image_id)):
-            await callback.message.edit_media(
-                media=InputMediaPhoto(media=media_photo.media, caption=text, parse_mode="HTML"),
+            await callback.message.answer_photo(
+                photo=media_photo.media,
+                caption=text,
+                parse_mode="HTML",
                 reply_markup=keyboard
             )
-        # Если у исходного сообщения есть анимация (гифка ленты), редактируем подпись
-        elif callback.message.animation:
-            await callback.message.edit_caption(caption=text, reply_markup=keyboard, parse_mode="HTML")
-        # В противном случае это обычное текстовое сообщение
         else:
-            await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
-            
-    except TelegramBadRequest as e:
-        if "message is not modified" not in str(e):
-            logfire.error(f"Ошибка при показе деталей поста: {e}")
-            await callback.answer("❌ Ошибка интерфейса", show_alert=True)
+            await callback.message.answer(
+                text=text,
+                parse_mode="HTML",
+                reply_markup=keyboard
+            )
+    except Exception as e:
+        logfire.error(f"Не удалось отправить детали поста: {e}")
+        await callback.answer("❌ Ошибка отображения поста", show_alert=True)
 
 
 @router.callback_query(F.data.startswith("liked_"))
@@ -342,7 +347,7 @@ async def handle_liked_navigation(callback: CallbackQuery, db):
             post_id = int(data[2])
             await handle_post_heart(callback, post_id, db, data)
     except Exception as e:
-        logfire.exception("Ошибка навигации по избранному {e}", e=e)
+        logfire.exception(f"Ошибка навигации по избранному {e}", e=e)
     await callback.answer()
 
 
@@ -359,18 +364,26 @@ async def show_liked_post_details(
     text = format_post_for_feed(post)
     keyboard = get_liked_post_keyboard(current_page, total_pages, post.id, is_liked)
 
-    # Здесь также применяем универсальную логику редактирования
+    # ИСПРАВЛЕНИЕ: Удаляем старое сообщение и отправляем новое
+    try:
+        await callback.message.delete()
+    except Exception as e:
+        logfire.warning(f"Не удалось удалить сообщение при показе деталей избранного: {e}")
+
     try:
         if post.image_id and (media_photo := await file_storage.get_media_photo(post.image_id)):
-            await callback.message.edit_media(
-                media=InputMediaPhoto(media=media_photo.media, caption=text, parse_mode="HTML"),
+            await callback.message.answer_photo(
+                photo=media_photo.media,
+                caption=text,
+                parse_mode="HTML",
                 reply_markup=keyboard
             )
-        elif callback.message.animation:
-             await callback.message.edit_caption(caption=text, reply_markup=keyboard, parse_mode="HTML")
         else:
-            await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
-    except TelegramBadRequest as e:
-        if "message is not modified" not in str(e):
-            logfire.error(f"Ошибка при показе деталей избранного: {e}")
-            await callback.answer("❌ Ошибка интерфейса", show_alert=True)
+            await callback.message.answer(
+                text=text,
+                parse_mode="HTML",
+                reply_markup=keyboard
+            )
+    except Exception as e:
+        logfire.error(f"Не удалось отправить детали избранного поста: {e}")
+        await callback.answer("❌ Ошибка отображения поста", show_alert=True)
