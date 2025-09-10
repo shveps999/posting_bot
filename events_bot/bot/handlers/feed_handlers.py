@@ -221,8 +221,9 @@ def format_post_for_feed(post, **kwargs) -> str:
     ]
     if event_str:
         lines.append(f"<i>🗓 {event_str}</i>")
+    lines.append(f"<i>📍 {address}</i>")
     lines.append(f"<i>🎓 {post_city}</i>")
-    lines.append(f"<i>{address}</i>")
+    lines.append("")
     lines.append(f"{post.content}")
 
     return "\n".join(lines)
@@ -237,6 +238,7 @@ def format_feed_list(posts, current_position_start: int, total_posts: int) -> st
         lines.append(f"{idx}. <b>{post.title}</b>")
         lines.append(f"<i>   ⭐️ {category_str}</i>")
         lines.append(f"<i>   🗓 {event_str}</i>")
+        lines.append(f"<i>   🎓 {post_city}</i>")
         lines.append("")
     lines.append("<b>Подробнее о мероприятии</b> – нажмите на число ниже")
     return "\n".join(lines)
