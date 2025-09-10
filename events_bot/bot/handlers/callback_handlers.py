@@ -46,7 +46,7 @@ async def confirm_categories_selection(callback: CallbackQuery, state: FSMContex
     selected_ids = data.get("selected_categories", [])
 
     if not selected_ids:
-        await callback.answer("❌ Выберите хотя бы одну категорию!")
+        await callback.answer("Выберите хотя бы одну категорию")
         return
 
     await UserService.select_categories(db, callback.from_user.id, selected_ids)
