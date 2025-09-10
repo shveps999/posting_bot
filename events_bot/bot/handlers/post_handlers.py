@@ -110,10 +110,10 @@ async def select_all_cities_post(callback: CallbackQuery, state: FSMContext, db)
 
     if len(selected_ids) == len(all_city_ids):
         new_selection = []
-        await callback.answer("🗙 Все университеты сняты")
+        await callback.answer("Все университеты сняты")
     else:
         new_selection = all_city_ids
-        await callback.answer("✅ Все университеты выбраны!")
+        await callback.answer("Все университеты выбраны")
 
     await state.update_data(selected_city_ids=new_selection)
 
@@ -129,7 +129,7 @@ async def confirm_city_selection(callback: CallbackQuery, state: FSMContext, db)
     selected_ids = data.get('selected_city_ids', [])
     
     if not selected_ids:
-        await callback.answer("Выберите хотя бы один университет!")
+        await callback.answer("Выберите хотя бы один университет")
         return
     
     cities = await CityService.get_cities_by_ids(db, selected_ids)
@@ -260,7 +260,7 @@ async def process_post_content(message: Message, state: FSMContext, db):
 
     await state.update_data(content=message.text)
     await message.answer(
-        "🔗 Введите ссылку на сайт / канал / сообщество мероприятия (или отправьте контакты организатора в формате https://).\n\nЭта ссылка будет прикреплена к вашему анонсу:"
+        "🔗 Введите ссылку на сайт, канал или сообщество мероприятия (или отправьте контакты организатора в формате https://).\n\nЭта ссылка будет прикреплена к вашему анонсу:"
     )
     await state.set_state(PostStates.waiting_for_url)
 
