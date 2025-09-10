@@ -40,7 +40,10 @@ class ModerationService:
                 or "Аноним"
             )
 
-        post_city = getattr(post, "city", "Не указан")
+        # ✅ ИСПРАВЛЕНИЕ: Получаем города правильно
+        city_names = [c.name for c in getattr(post, "cities", []) if hasattr(c, "name")]
+        post_city = ", ".join(city_names) if city_names else "Не указан"
+        
         address = getattr(post, "address", "Не указан")
         url = getattr(post, "url", None)
 
