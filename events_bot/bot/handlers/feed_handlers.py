@@ -144,7 +144,7 @@ async def show_feed_page_from_animation(message: Message, page: int, db, user_id
                 animation=FEED_GIF_ID,
                 caption="В актуальном пока нет мероприятий по вашим категориям.\n\n"
                         "Что можно сделать:\n"
-                        "• Выбрать другие категории или университеты\n"
+                        "• Выбрать другие категории или ВУЗы\n"
                         "• Создать своё мероприятие\n"
                         "• Дождаться появления в актуальном новых мероприятий",
                 reply_markup=get_main_keyboard(),
