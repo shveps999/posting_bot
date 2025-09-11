@@ -173,6 +173,34 @@ async def cmd_delete_user(message: Message, db):
     else:
         await message.answer("❌ Ошибка при удалении аккаунта. Попробуйте позже.")
 
+# НОВАЯ КОМАНДА
+@router.message(F.text.regexp(r"^/delete_post\s+(\d+)$"))
+async def cmd_delete_post(message: Message, db):
+    """Удаление поста по ID"""
+    try:
+        post_id = int(message.text.split()[1])
+    except (IndexError, ValueError):
+        await message.answer("❌ Неверный формат команды. Используйте: /delete_post <id>")
+        return
+
+    # Получаем пост для проверки авторства
+    post = await PostService.get_post_by_id(db, post_id)
+    if not post:
+        await message.answer("❌ Пост не найден.")
+        return
+
+    # Проверяем, что пользователь является автором поста
+    if post.author_id != message.from_user.id:
+        await message.answer("❌ Вы можете удалять только свои посты.")
+        return
+
+    # Удаляем пост
+    success = await PostService.delete_post(db, post_id)
+    if success:
+        await message.answer(f"✅ Пост с ID {post_id} успешно удален.")
+    else:
+        await message.answer("❌ Ошибка при удалении поста.")
+
 # ВОССТАНОВЛЕННЫЙ ОБРАБОТЧИК
 @router.message(F.text == "/liked_posts")
 async def cmd_liked_posts(message: Message, db):
