@@ -136,3 +136,10 @@ class UserRepository:
         
         await db.commit()
         return True
+
+    # НОВЫЙ МЕТОД ДЛЯ РАССЫЛКИ
+    @staticmethod
+    async def get_all_users(db: AsyncSession) -> List[User]:
+        """Получить всех пользователей"""
+        result = await db.execute(select(User))
+        return list(result.scalars().all())
