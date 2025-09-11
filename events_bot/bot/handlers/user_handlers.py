@@ -183,14 +183,18 @@ async def cmd_delete_user(message: Message, db):
 async def cmd_broadcast(message: Message, db):
     """Отправить сообщение всем пользователям (только для администратора)"""
     # Извлекаем текст сообщения после команды
-    broadcast_text = message.text[len("/broadcast "):].strip()
+    original_text = message.text[len("/broadcast "):].strip()
     
-    if not broadcast_text:
+    if not original_text:
         await message.answer("❌ Пожалуйста, введите текст сообщения после команды /broadcast")
         return
 
+    # Формируем сообщение с префиксом "Команда «Сердца»:" жирным шрифтом
+    # Используем HTML-разметку для выделения жирным
+    broadcast_text = f"<b>Команда «Сердца»:</b>\n\n{original_text}"
+
     # Подтверждение отправки
-    confirm_msg = await message.answer(f"⏳ Начинаю рассылку сообщения...\n\n{broadcast_text}")
+    confirm_msg = await message.answer(f"⏳ Начинаю рассылку сообщения...\n\n{broadcast_text}", parse_mode="HTML")
     
     # Получаем всех пользователей из базы данных
     users = await UserService.get_all_users(db)
@@ -206,10 +210,11 @@ async def cmd_broadcast(message: Message, db):
     # Отправляем сообщение каждому пользователю
     for user in users:
         try:
-            await message.bot.send_message(chat_id=user.id, text=broadcast_text)
+            # Отправляем сообщение с HTML-разметкой
+            await message.bot.send_message(chat_id=user.id, text=broadcast_text, parse_mode="HTML")
             success_count += 1
             # Небольшая задержка, чтобы избежать ограничений Telegram
-            await asyncio.sleep(0.05)
+            await asyncio.sleep(0.05) 
         except TelegramForbiddenError:
             # Пользователь заблокировал бота
             logfire.warning(f"Пользователь {user.id} заблокировал бота, не могу отправить сообщение")
@@ -220,7 +225,7 @@ async def cmd_broadcast(message: Message, db):
             await asyncio.sleep(e.retry_after)
             # Повторяем попытку для этого пользователя
             try:
-                await message.bot.send_message(chat_id=user.id, text=broadcast_text)
+                await message.bot.send_message(chat_id=user.id, text=broadcast_text, parse_mode="HTML")
                 success_count += 1
             except Exception as e2:
                 logfire.error(f"Ошибка повторной отправки сообщения пользователю {user.id}: {e2}")
@@ -237,7 +242,8 @@ async def cmd_broadcast(message: Message, db):
                     f"Прогресс: {success_count + fail_count}/{total_users}\n"
                     f"Успешно: {success_count}\n"
                     f"Ошибок: {fail_count}\n\n"
-                    f"{broadcast_text}"
+                    f"{broadcast_text}",
+                    parse_mode="HTML"
                 )
             except Exception:
                 pass # Игнорируем ошибки редактирования сообщения о прогрессе
@@ -248,7 +254,8 @@ async def cmd_broadcast(message: Message, db):
         f"Всего пользователей: {total_users}\n"
         f"Успешно: {success_count}\n"
         f"Ошибок: {fail_count}\n\n"
-        f"Отправленное сообщение:\n{broadcast_text}"
+        f"Отправленное сообщение:\n{broadcast_text}",
+        parse_mode="HTML"
     )
 
 # ВОССТАНОВЛЕННЫЙ ОБРАБОТЧИК
