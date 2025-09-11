@@ -32,7 +32,7 @@ async def cmd_create_post(message: Message, state: FSMContext, db):
     await state.set_state(PostStates.creating_post)
     all_cities = await CityService.get_all_cities(db)
     await message.answer(
-        "📍 Выберите университет(ы) для мероприятия:",
+        "🎓 Выберите университет(ы) для мероприятия:",
         reply_markup=get_city_keyboard(all_cities, for_post=True)
     )
     await state.set_state(PostStates.waiting_for_city_selection)
@@ -61,7 +61,7 @@ async def start_create_post(callback: CallbackQuery, state: FSMContext, db):
         logfire.warning(f"Не удалось удалить сообщение: {e}")
 
     await callback.message.answer(
-        "📍 Выберите университет(ы) для поста:",
+        "🎓 Выберите университет(ы) для мероприятия:",
         reply_markup=get_city_keyboard(all_cities, for_post=True),
     )
     await state.set_state(PostStates.waiting_for_city_selection)
