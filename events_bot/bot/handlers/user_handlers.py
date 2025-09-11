@@ -85,8 +85,8 @@ async def confirm_city_selection(callback: CallbackQuery, state: FSMContext, db)
     selected_cat_ids = [cat.id for cat in user_categories]
 
     text_to_send = (
-        f"📍 Университеты выбраны: {city_names}\n\n"
-        f"Теперь выберите категории интересов для кастомизации уведомлений и подборки:"
+        f"Университеты выбраны: {city_names}\n\n"
+        f"⭐️ Теперь выберите категории интересов для кастомизации уведомлений и подборки:"
     )
     keyboard = get_category_selection_keyboard(categories, selected_cat_ids)
     
