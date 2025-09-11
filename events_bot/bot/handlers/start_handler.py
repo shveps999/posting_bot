@@ -3,7 +3,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from events_bot.database.services import UserService, CityService, CategoryService
 from events_bot.bot.states import UserStates
-from events_bot.bot.keyboards import get_city_keyboard, get_main_keyboard
+from events_bot.bot.keyboards import get_city_keyboard, get_category_selection_keyboard, get_main_keyboard
 import os
 import random
 import logfire
@@ -42,6 +42,13 @@ async def cmd_start(message: Message, state: FSMContext, db):
     user_id = message.from_user.id
     current_time = time.time()
 
+    # 1. Сразу удаляем команду /start, отправленную пользователем
+    # Это нужно сделать ДО проверки на даблклик, чтобы команда не висела
+    try:
+        await message.delete()
+    except Exception:
+        pass
+
     # --- Защита от даблклика ---
     state_data = await state.get_data()
     last_start_time = state_data.get(f"last_start_time_{user_id}")
@@ -49,23 +56,12 @@ async def cmd_start(message: Message, state: FSMContext, db):
     if last_start_time and (current_time - last_start_time) < ANTI_DOUBLE_CLICK_DELAY:
         # Если прошло меньше ANTI_DOUBLE_CLICK_DELAY секунд с последнего вызова /start для этого пользователя
         logfire.info(f"Игнорируем даблклик /start для пользователя {user_id}")
-        try:
-            # Можно отправить короткое сообщение, но часто лучше просто игнорировать
-            # await message.answer("⏳ Команда уже обрабатывается...")
-            pass
-        except:
-            pass
+        # Сообщение с командой уже удалено выше, дополнительных действий не нужно
         return # Игнорируем этот вызов
 
     # Обновляем временную метку последнего вызова /start
     await state.update_data({f"last_start_time_{user_id}": current_time})
     # -- Конец защиты --
-
-    # 1. Удаляем команду /start, отправленную пользователем (если возможно)
-    try:
-        await message.delete()
-    except Exception:
-        pass
 
     # 2. Отправляем приветственное сообщение, которое остается в чате
     welcome_msg = await message.answer("👋 Добро пожаловать в Сердце!")
