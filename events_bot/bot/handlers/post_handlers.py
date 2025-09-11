@@ -140,7 +140,7 @@ async def confirm_city_selection(callback: CallbackQuery, state: FSMContext, db)
     
     city_text = ", ".join(city_names)
     await callback.message.edit_text(
-        f"📍 Университеты выбраны: {city_text}\n\n⭐️ Теперь выберите категории мероприятия:",
+        f"Университеты выбраны: {city_text}\n\n⭐️ Теперь выберите категории мероприятия:",
         reply_markup=get_category_selection_keyboard(all_categories, for_post=True),
     )
     await state.set_state(PostStates.waiting_for_category_selection)
@@ -221,7 +221,7 @@ async def confirm_post_categories(callback: CallbackQuery, state: FSMContext, db
 
     try:
         await callback.message.edit_text(
-            f"✏️ Создание мероприятия в категориях: {category_list}\n\nВведите заголовок:"
+            f"📝 Создание мероприятия в категориях: {category_list}\n\nВведите заголовок:"
         )
     except Exception as e:
         if "message is not modified" in str(e):
