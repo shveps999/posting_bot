@@ -88,7 +88,7 @@ async def show_liked(callback: CallbackQuery, db):
         try:
             sent = await callback.message.answer_animation(
                 animation=LIKED_GIF_ID,
-                caption="❤️ Загружаю избранное...",
+                caption="✨ Загружаю избранное...",
                 parse_mode="HTML"
             )
             await show_liked_page_from_animation(sent, 0, db, user_id=callback.from_user.id)
@@ -142,9 +142,9 @@ async def show_feed_page_from_animation(message: Message, page: int, db, user_id
         if not posts:
             await message.answer_animation(
                 animation=FEED_GIF_ID,
-                caption="В актуальном пока нет мероприятий по вашим категориям.\n\n"
+                caption="В актуальном пока нет мероприятий по вашим категориям\n\n"
                         "Что можно сделать:\n"
-                        "• Выбрать другие категории или ВУЗы\n"
+                        "• Выбрать другие категории или вузы\n"
                         "• Создать своё мероприятие\n"
                         "• Дождаться появления в актуальном новых мероприятий",
                 reply_markup=get_main_keyboard(),
@@ -184,7 +184,7 @@ async def show_liked_page_from_animation(message: Message, page: int, db, user_i
                         "Чтобы добавить:\n"
                         "• Выберите событие в актуальном\n"
                         "• Перейдите в «подробнее» события\n"
-                        "• Нажмите «В избранное» под постом",
+                        "• Нажмите «в избранное» под постом",
                 reply_markup=get_main_keyboard(),
                 parse_mode="HTML"
             )
