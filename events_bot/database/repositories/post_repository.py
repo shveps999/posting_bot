@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func, insert, or_, delete
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from ..models import Post, ModerationRecord, ModerationAction, Category, City, post_categories
 from ..models import User, Like
 
@@ -294,10 +294,18 @@ class PostRepository:
     @staticmethod
     async def delete_expired_posts(db: AsyncSession) -> int:
         from ..models import Like, ModerationRecord, post_cities
+        # Получаем текущее время UTC
         current_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+        # Вычисляем пороговое время: события, которые должны были начаться более 2 часов назад
+        # То есть, если event_at + 2 часа <= current_utc, то пост считается просроченным
+        expiration_threshold = current_utc - timedelta(hours=2)
+        
         expired_posts = await db.execute(
             select(Post.id).where(
-                Post.event_at.is_not(None), Post.event_at <= current_utc
+                and_(
+                    Post.event_at.is_not(None), 
+                    Post.event_at <= expiration_threshold
+                )
             )
         )
         post_ids = [pid for pid in expired_posts.scalars().all()]
@@ -321,10 +329,18 @@ class PostRepository:
 
     @staticmethod
     async def get_expired_posts_info(db: AsyncSession) -> list[dict]:
+        # Получаем текущее время UTC
         current_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+        # Вычисляем пороговое время: события, которые должны были начаться более 2 часов назад
+        # То есть, если event_at + 2 часа <= current_utc, то пост считается просроченным
+        expiration_threshold = current_utc - timedelta(hours=2)
+        
         result = await db.execute(
             select(Post.id, Post.image_id).where(
-                and_(Post.event_at.is_not(None), Post.event_at <= current_utc)
+                and_(
+                    Post.event_at.is_not(None), 
+                    Post.event_at <= expiration_threshold
+                )
             )
         )
         rows = result.all()
