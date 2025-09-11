@@ -1,12 +1,13 @@
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
+from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-from events_bot.database.services import UserService, CityService
+from events_bot.database.services import UserService, CityService, CategoryService
 from events_bot.bot.states import UserStates
 from events_bot.bot.keyboards import get_city_keyboard, get_main_keyboard
 import os
 import random
 import logfire
+import time
 
 router = Router()
 
@@ -26,6 +27,9 @@ START_GIF_ID = os.getenv("START_GIF_ID")
 # Очистка: убираем None
 MAIN_MENU_GIF_IDS = [gif_id for gif_id in MAIN_MENU_GIF_IDS if gif_id]
 
+# Константа для защиты от даблклика (в секундах)
+ANTI_DOUBLE_CLICK_DELAY = 2.0
+
 
 def register_start_handlers(dp: Router):
     """Регистрация обработчиков команды start"""
@@ -35,14 +39,36 @@ def register_start_handlers(dp: Router):
 @router.message(F.text == "/start")
 async def cmd_start(message: Message, state: FSMContext, db):
     """Обработчик команды /start"""
-    # 1. Удаляем команду /start, отправленную пользователем
+    user_id = message.from_user.id
+    current_time = time.time()
+
+    # --- Защита от даблклика ---
+    state_data = await state.get_data()
+    last_start_time = state_data.get(f"last_start_time_{user_id}")
+
+    if last_start_time and (current_time - last_start_time) < ANTI_DOUBLE_CLICK_DELAY:
+        # Если прошло меньше ANTI_DOUBLE_CLICK_DELAY секунд с последнего вызова /start для этого пользователя
+        logfire.info(f"Игнорируем даблклик /start для пользователя {user_id}")
+        try:
+            # Можно отправить короткое сообщение, но часто лучше просто игнорировать
+            # await message.answer("⏳ Команда уже обрабатывается...")
+            pass
+        except:
+            pass
+        return # Игнорируем этот вызов
+
+    # Обновляем временную метку последнего вызова /start
+    await state.update_data({f"last_start_time_{user_id}": current_time})
+    # -- Конец защиты --
+
+    # 1. Удаляем команду /start, отправленную пользователем (если возможно)
     try:
         await message.delete()
     except Exception:
         pass
 
     # 2. Отправляем приветственное сообщение, которое остается в чате
-    await message.answer("👋 Добро пожаловать в Сердце!")
+    welcome_msg = await message.answer("👋 Добро пожаловать в Сердце!")
 
     # 3. Регистрируем пользователя
     user = await UserService.register_user(
@@ -66,25 +92,33 @@ async def cmd_start(message: Message, state: FSMContext, db):
             sent_message = await message.answer_animation(
                 animation=START_GIF_ID
             )
-            await show_city_selection(sent_message, state, db, user_id=message.from_user.id)
+            await show_city_selection(sent_message, state, db, user_id=message.from_user.id, welcome_msg_id=welcome_msg.message_id)
             return
         except Exception as e:
             logfire.warning(f"Ошибка отправки START_GIF: {e}")
 
     # Резервный вариант без гифки
-    await show_city_selection(message, state, db, user_id=message.from_user.id, is_text_based=True)
+    await show_city_selection(message, state, db, user_id=message.from_user.id, is_text_based=True, welcome_msg_id=welcome_msg.message_id)
 
 
-async def show_city_selection(message: Message, state: FSMContext, db, user_id: int, is_text_based: bool = False):
+async def show_city_selection(message: Message, state: FSMContext, db, user_id: int, is_text_based: bool = False, welcome_msg_id: int = None):
     """Показать выбор города, отредактировав сообщение с гифкой или отправив новое"""
+    # Сохраняем ID приветственного сообщения в состоянии, если нужно его удалить позже (например, при отмене)
+    # Пока просто передаем его, но не используем. Можно добавить логику удаления приветствия при необходимости.
+    if welcome_msg_id:
+        await state.update_data(welcome_msg_id=welcome_msg_id)
+
     all_cities = await CityService.get_all_cities(db)
     user_cities = await UserService.get_user_cities(db, user_id)
     selected_ids = [c.id for c in user_cities]
 
+    # --- Текст БЕЗ приветствия ---
     text = (
-        "Бот поможет быть в курсе актуальных и интересных мероприятий твоего ВУЗа по выбранным категориям интересов. А еще здесь можно создать свое мероприятие. Начнем!\n\n"
-        "Для начала выберите ваши университеты:"
+        "Бот поможет всегда быть в курсе актуальных мероприятий твоего университета по выбранным категориям интересов. "
+        "А еще здесь можно создать и разместить свое мероприятие.\n\n"
+        "Начнем! Для начала выберите интересующие университеты:"
     )
+    # -------------------------
     keyboard = get_city_keyboard(all_cities, selected_ids)
     
     if is_text_based:
