@@ -57,3 +57,9 @@ class UserService:
     async def delete_user(db: AsyncSession, user_id: int) -> bool:
         """Удалить пользователя по ID"""
         return await UserRepository.delete_user(db, user_id)
+
+    # НОВЫЙ МЕТОД ДЛЯ РАССЫЛКИ
+    @staticmethod
+    async def get_all_users(db: AsyncSession) -> List[User]:
+        """Получить всех пользователей"""
+        return await UserRepository.get_all_users(db)
