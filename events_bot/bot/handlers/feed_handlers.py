@@ -183,7 +183,7 @@ async def show_liked_page_from_animation(message: Message, page: int, db, user_i
                 caption="У вас пока нет избранных мероприятий\n\n"
                         "Чтобы добавить:\n"
                         "• Выберите событие в актуальном\n"
-                        "• Перейдите в подробнее события\n"
+                        "• Перейдите в «подробнее» события\n"
                         "• Нажмите «В избранное» под постом",
                 reply_markup=get_main_keyboard(),
                 parse_mode="HTML"
