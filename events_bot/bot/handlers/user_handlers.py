@@ -259,7 +259,7 @@ async def cmd_broadcast(message: Message, db):
     )
 
 # ВОССТАНОВЛЕННЫЙ ОБРАБОТЧИК
-@router.message(F.text == "/delete_post")
+@router.message(F.text.startswith("/delete_post "))
 async def cmd_delete_post(message: Message, db):
     """Удаление поста по ID"""
     try:
