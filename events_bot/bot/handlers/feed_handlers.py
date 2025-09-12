@@ -156,7 +156,7 @@ async def show_feed_page_from_animation(message: Message, page: int, db, user_id
         total_pages = (total_posts + POSTS_PER_PAGE - 1) // POSTS_PER_PAGE
         for post in posts:
             await db.refresh(post, attribute_names=["categories"])
-        preview_text = format_feed_list(posts, page * POSTS_PER_PAGE + 1, total_posts)
+        preview_text = format_feed_list(posts, page * POSTS_PER_PAGE + 1, total_posts, current_page=page)
         start_index = page * POSTS_PER_PAGE + 1
 
         await message.answer_animation(
@@ -193,7 +193,7 @@ async def show_liked_page_from_animation(message: Message, page: int, db, user_i
         total_posts = await PostService.get_liked_posts_count(db, user_id)
         total_pages = (total_posts + POSTS_PER_PAGE - 1) // POSTS_PER_PAGE
         start_index = page * POSTS_PER_PAGE + 1
-        text = format_liked_list(posts, start_index, total_posts)
+        text = format_liked_list(posts, start_index, total_posts, current_page=page)
 
         await message.answer_animation(
             animation=LIKED_GIF_ID,
@@ -229,14 +229,13 @@ def format_post_for_feed(post, **kwargs) -> str:
     return "\n".join(lines)
 
 
-def format_feed_list(posts, current_position_start: int, total_posts: int) -> str:
+def format_feed_list(posts, current_position_start: int, total_posts: int, current_page: int = 0) -> str:
     lines = ["", ""]
     for idx, post in enumerate(posts, start=current_position_start):
         category_str = get_clean_category_string(post.categories)
         event_at = getattr(post, "event_at", None)
         event_str = event_at.strftime("%d.%m.%Y %H:%M") if event_at else ""
         
-        # ИСПРАВЛЕНИЕ: Получаем город для каждого поста
         city_names = [c.name for c in getattr(post, "cities", [])]
         post_city = ", ".join(city_names) or "Не указан"
         
@@ -244,11 +243,19 @@ def format_feed_list(posts, current_position_start: int, total_posts: int) -> st
         lines.append(f"<i>   ⭐️ {category_str}</i>")
         lines.append(f"<i>   🗓 {event_str}</i>")
         lines.append("")
+
     lines.append("<b>Подробнее о мероприятии</b> – нажмите на число ниже")
+    
+    # Добавляем номер страницы
+    total_pages = (total_posts + POSTS_PER_PAGE - 1) // POSTS_PER_PAGE
+    if total_pages > 1:
+        page_text = f"Лист {current_page + 1} из {total_pages}"
+        lines.append(page_text)
+    
     return "\n".join(lines)
 
 
-def format_liked_list(posts, current_position_start: int, total_posts: int) -> str:
+def format_liked_list(posts, current_position_start: int, total_posts: int, current_page: int = 0) -> str:
     lines = ["", ""]
     for idx, post in enumerate(posts, start=current_position_start):
         category_str = get_clean_category_string(post.categories)
@@ -263,6 +270,13 @@ def format_liked_list(posts, current_position_start: int, total_posts: int) -> s
         lines.append("")
     
     lines.append("<b>Подробнее о мероприятии</b> – нажмите на число ниже")
+    
+    # Добавляем номер страницы
+    total_pages = (total_posts + POSTS_PER_PAGE - 1) // POSTS_PER_PAGE
+    if total_pages > 1:
+        page_text = f"Лист {current_page + 1} из {total_pages}"
+        lines.append(page_text)
+    
     return "\n".join(lines)
 
 
@@ -310,7 +324,6 @@ async def show_post_details(
         url=post_url
     )
 
-    # ИСПРАВЛЕНИЕ: Удаляем старое сообщение и отправляем новое
     try:
         await callback.message.delete()
     except Exception as e:
@@ -371,7 +384,6 @@ async def show_liked_post_details(
     text = format_post_for_feed(post)
     keyboard = get_liked_post_keyboard(current_page, total_pages, post.id, is_liked)
 
-    # ИСПРАВЛЕНИЕ: Удаляем старое сообщение и отправляем новое
     try:
         await callback.message.delete()
     except Exception as e:
