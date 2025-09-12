@@ -241,7 +241,7 @@ async def process_post_title(message: Message, state: FSMContext, db):
     logfire.info(f"Получен заголовок поста от пользователя {message.from_user.id}: {message.text}")
 
     if len(message.text) > 100:
-        await message.answer("✖️ Заголовок слишком длинный. Максимум 100 символов.")
+        await message.answer("× Заголовок слишком длинный. Максимум 100 символов.")
         return
 
     await state.update_data(title=message.text)
@@ -255,7 +255,7 @@ async def process_post_title(message: Message, state: FSMContext, db):
 async def process_post_content(message: Message, state: FSMContext, db):
     """Обработка содержания поста"""
     if len(message.text) > 2000:
-        await message.answer("✖️ Описание слишком длинное. Максимум 2000 символов.")
+        await message.answer("× Описание слишком длинное. Максимум 2000 символов.")
         return
 
     await state.update_data(content=message.text)
@@ -280,9 +280,9 @@ async def process_post_url(message: Message, state: FSMContext, db):
         return
 
     # Проверка длины
-    if len(url) > 500:
+    if len(url) > 100:
         await message.answer(
-            "× Ссылка слишком длинная — более 500 символов.\n"
+            "× Ссылка слишком длинная — более 100 символов.\n"
             "Пожалуйста, сократите её (например, через bit.ly) или используйте более короткую."
         )
         return
@@ -350,7 +350,7 @@ async def process_post_address(message: Message, state: FSMContext, db):
     """Обработка адреса мероприятия"""
     address = message.text.strip()
     if len(address) > 200:
-        await message.answer("✖️ Адрес слишком длинный. Максимум 200 символов.")
+        await message.answer("× Адрес слишком длинный. Максимум 200 символов.")
         return
 
     await state.update_data(address=address)
@@ -366,7 +366,7 @@ async def process_post_image(message: Message, state: FSMContext, db):
         return
 
     if not message.photo:
-        await message.answer("✖️ Пожалуйста, отправьте изображение или нажмите /skip")
+        await message.answer("× Пожалуйста, отправьте изображение или нажмите /skip")
         return
 
     photo = message.photo[-1]
