@@ -148,7 +148,7 @@ class Post(Base, TimestampMixin):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     image_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    url: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)  # Ссылка
+    url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)  # Ссылка
     is_approved: Mapped[bool] = mapped_column(Boolean, default=False)
     is_published: Mapped[bool] = mapped_column(Boolean, default=False)
     published_at: Mapped[Optional[DateTime]] = mapped_column(DateTime, nullable=True)
