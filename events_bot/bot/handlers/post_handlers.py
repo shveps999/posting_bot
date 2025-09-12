@@ -282,7 +282,7 @@ async def process_post_url(message: Message, state: FSMContext, db):
     # Проверка длины
     if len(url) > 500:
         await message.answer(
-            "❌ Ссылка слишком длинная — более 500 символов.\n"
+            "× Ссылка слишком длинная — более 500 символов.\n"
             "Пожалуйста, сократите её (например, через bit.ly) или используйте более короткую."
         )
         return
@@ -290,7 +290,7 @@ async def process_post_url(message: Message, state: FSMContext, db):
     # Проверка формата URL
     if not (url.startswith("http://") or url.startswith("https://")):
         await message.answer(
-            "❌ Ссылка должна начинаться с http:// или https://. "
+            "× Ссылка должна начинаться с http:// или https://. "
             "Попробуйте снова или отправьте /skip."
         )
         return
