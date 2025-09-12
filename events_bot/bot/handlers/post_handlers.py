@@ -267,13 +267,35 @@ async def process_post_content(message: Message, state: FSMContext, db):
 
 @router.message(PostStates.waiting_for_url)
 async def process_post_url(message: Message, state: FSMContext, db):
-    """Обработка ссылки для поста"""
+    """Обработка ссылки для поста с ограничением в 500 символов"""
     url = None if message.text == "/skip" else message.text.strip()
-    if url and not (url.startswith("http://") or url.startswith("https://")):
+
+    # Пропуск разрешён
+    if url is None:
+        await state.update_data(url=url)
         await message.answer(
-            "❌ Ссылка должна начинаться с http:// или https://. Попробуйте снова или отправьте /skip."
+            "🗓 Введите дату и время события в формате ДД.ММ.ГГГГ ЧЧ:ММ (например, 25.12.2025 18:30)\n\n"
+        )
+        await state.set_state(PostStates.waiting_for_event_datetime)
+        return
+
+    # Проверка длины
+    if len(url) > 500:
+        await message.answer(
+            "❌ Ссылка слишком длинная — более 500 символов.\n"
+            "Пожалуйста, сократите её (например, через bit.ly) или используйте более короткую."
         )
         return
+
+    # Проверка формата URL
+    if not (url.startswith("http://") or url.startswith("https://")):
+        await message.answer(
+            "❌ Ссылка должна начинаться с http:// или https://. "
+            "Попробуйте снова или отправьте /skip."
+        )
+        return
+
+    # Сохраняем и переходим дальше
     await state.update_data(url=url)
     await message.answer(
         "🗓 Введите дату и время события в формате ДД.ММ.ГГГГ ЧЧ:ММ (например, 25.12.2025 18:30)\n\n"
