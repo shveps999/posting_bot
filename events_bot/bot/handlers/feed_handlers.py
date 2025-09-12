@@ -247,7 +247,7 @@ def format_feed_list(posts, current_position_start: int, total_posts: int, curre
     # Добавляем номер страницы
     total_pages = (total_posts + POSTS_PER_PAGE - 1) // POSTS_PER_PAGE
     if total_pages > 1:
-        page_text = f"Лист {current_page + 1} из {total_pages}"
+        page_text = f"Страница {current_page + 1} из {total_pages}"
         lines.append(page_text)
 
     # Одна пустая строка перед призывом к действию
@@ -274,7 +274,7 @@ def format_liked_list(posts, current_position_start: int, total_posts: int, curr
     # Добавляем номер страницы
     total_pages = (total_posts + POSTS_PER_PAGE - 1) // POSTS_PER_PAGE
     if total_pages > 1:
-        page_text = f"Лист {current_page + 1} из {total_pages}"
+        page_text = f"Страница {current_page + 1} из {total_pages}"
         lines.append(page_text)
 
     # Одна пустая строка перед призывом к действию
