@@ -13,8 +13,6 @@ except Exception:
 
 import asyncio
 import os
-from contextlib import asynccontextmanager
-from datetime import timezone  # <-- ДОБАВЛЕНА ЭТА СТРОКА
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from events_bot.database import init_database
@@ -33,7 +31,7 @@ from loguru import logger
 logger.configure(handlers=[logfire.loguru_handler()])
 
 
-async def main():
+async def main() -> None:
     """Главная функция бота"""
     # Подхват переменных окружения из .env, если есть
     try:
@@ -44,9 +42,17 @@ async def main():
         pass
 
     # Получаем токен из переменных окружения
-    token = os.getenv("BOT_TOKEN")
+    # Поддерживаем несколько названий переменной для удобства:
+    # BOT_TOKEN (основное), TELEGRAM_BOT_TOKEN и TG_BOT_TOKEN (альтернативы)
+    token = (
+        os.getenv("BOT_TOKEN")
+        or os.getenv("TELEGRAM_BOT_TOKEN")
+        or os.getenv("TG_BOT_TOKEN")
+    )
     if not token:
-        logfire.error("❌ Error: BOT_TOKEN not set")
+        logfire.error(
+            "❌ Error: bot token not set (BOT_TOKEN/TELEGRAM_BOT_TOKEN)"
+        )
         return
 
     # Инициализируем базу данных
@@ -72,18 +78,21 @@ async def main():
 
     logfire.info("🤖 Bot started...")
 
-    async def cleanup_expired_posts_task():
+    async def cleanup_expired_posts_task() -> None:
         from events_bot.bot.utils import get_db_session
         from events_bot.storage import file_storage
 
         while True:
             try:
                 async with get_db_session() as db:
-                    # Сначала собираем информацию о просроченных постах (id, image_id)
+                    # Сначала собираем информацию о просроченных постах
+                    # (id, image_id)
                     expired = await PostService.get_expired_posts_info(db)
                     deleted = await PostService.delete_expired_posts(db)
                     if deleted:
-                        logfire.info(f"🧹 Удалено просроченных постов: {deleted}")
+                        logfire.info(
+                            f"🧹 Удалено просроченных постов: {deleted}"
+                        )
                         # Удаляем связанные файлы из хранилища
                         for row in expired:
                             image_id = row.get("image_id")
