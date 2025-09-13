@@ -386,7 +386,18 @@ async def show_liked_post_details(
     await db.refresh(post, attribute_names=["author", "categories", "cities"])
     is_liked = await LikeService.is_post_liked_by_user(db, callback.from_user.id, post.id)
     text = format_post_for_feed(post)
-    keyboard = get_liked_post_keyboard(current_page, total_pages, post.id, is_liked)
+    
+    # 🔹 Получаем URL поста
+    post_url = getattr(post, "url", None)
+
+    # 🔹 Передаём URL в клавиатуру
+    keyboard = get_liked_post_keyboard(
+        current_page=current_page,
+        total_pages=total_pages,
+        post_id=post.id,
+        is_liked=is_liked,
+        url=post_url  # ← Ключевое исправление
+    )
 
     try:
         await callback.message.delete()
