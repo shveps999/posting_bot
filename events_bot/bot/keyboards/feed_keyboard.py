@@ -118,6 +118,7 @@ def get_liked_post_keyboard(
     total_pages: int,
     post_id: int,
     is_liked: bool = False,
+    url: str | None = None,
 ) -> InlineKeyboardMarkup:
     """Клавиатура для детального просмотра поста в избранном"""
     builder = InlineKeyboardBuilder()
@@ -127,6 +128,10 @@ def get_liked_post_keyboard(
         text=heart_text,
         callback_data=f"liked_heart_{post_id}_{current_page}_{total_pages}"
     )
+    
+    if url:
+        builder.button(text="🔗 Ссылка", url=url)
+    
     builder.button(
         text="‹ К списку", callback_data=f"liked_back_{current_page}_{total_pages}"
     )
@@ -134,7 +139,10 @@ def get_liked_post_keyboard(
         text="💌 Главное меню", callback_data="main_menu"
     )
 
-    # [лайк] [назад][меню]
-    builder.adjust(1, 2)
+    # Располагаем: если есть ссылка — 2 в ряд, иначе 1 + 2
+    if url:
+        builder.adjust(2, 2)  # [лайк][ссылка] [назад][меню]
+    else:
+        builder.adjust(1, 2)  # [лайк] [назад][меню]
 
     return builder.as_markup()
