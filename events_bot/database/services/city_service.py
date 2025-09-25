@@ -9,8 +9,8 @@ class CityService:
 
     @staticmethod
     async def get_all_cities(db: AsyncSession) -> List[City]:
-        """Получить все доступные города"""
-        return await CityRepository.get_all_active(db)
+        """Получить все доступные города, отсортированные по возрастанию ID"""
+        return await CityRepository.get_all_active_ordered_by_id(db)
 
     @staticmethod
     async def get_city_by_id(
@@ -23,5 +23,5 @@ class CityService:
     async def get_cities_by_ids(
         db: AsyncSession, city_ids: List[int]
     ) -> List[City]:
-        """Получить города по списку ID"""
+        """Получить города по списку ID (сохраняется порядок из запроса)"""
         return await CityRepository.get_by_ids(db, city_ids)
