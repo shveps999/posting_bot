@@ -2,26 +2,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func, insert, or_, delete
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from ..models import Post, ModerationRecord, ModerationAction, Category, City, post_categories
 from ..models import User, Like
 
 
 class PostRepository:
     """Асинхронный репозиторий для работы с постами"""
-
-    # Московское время обычно UTC+3. Для точности можно использовать библиотеку zoneinfo,
-    # но для простоты зафиксируем смещение.
-    MSK_OFFSET = timedelta(hours=3)
-
-    @staticmethod
-    async def _get_current_msk_time() -> datetime:
-        """Получить текущее время в Москве (UTC+3)."""
-        # Получаем текущее UTC время
-        utc_now = datetime.now(timezone.utc).replace(tzinfo=None)
-        # Конвертируем в MSK
-        msk_now = utc_now + PostRepository.MSK_OFFSET
-        return msk_now
 
     @staticmethod
     async def create_post(
@@ -307,18 +294,10 @@ class PostRepository:
     @staticmethod
     async def delete_expired_posts(db: AsyncSession) -> int:
         from ..models import Like, ModerationRecord, post_cities
-        # Получаем текущее время в Москве
-        current_msk = await PostRepository._get_current_msk_time()
-        # Вычисляем пороговое время: события, которые должны начаться через 2 часа или меньше
-        # То есть, если event_at <= (current_msk + 2 часа), то пост считается подлежащим удалению
-        deletion_threshold_msk = current_msk + timedelta(hours=2)
-        
+        current_utc = datetime.now(timezone.utc).replace(tzinfo=None)
         expired_posts = await db.execute(
             select(Post.id).where(
-                and_(
-                    Post.event_at.is_not(None), 
-                    Post.event_at <= deletion_threshold_msk # Исправлено
-                )
+                Post.event_at.is_not(None), Post.event_at <= current_utc
             )
         )
         post_ids = [pid for pid in expired_posts.scalars().all()]
@@ -342,18 +321,10 @@ class PostRepository:
 
     @staticmethod
     async def get_expired_posts_info(db: AsyncSession) -> list[dict]:
-        # Получаем текущее время в Москве
-        current_msk = await PostRepository._get_current_msk_time()
-        # Вычисляем пороговое время: события, которые должны начаться через 2 часа или меньше
-        # То есть, если event_at <= (current_msk + 2 часа), то пост считается подлежащим удалению
-        deletion_threshold_msk = current_msk + timedelta(hours=2)
-        
+        current_utc = datetime.now(timezone.utc).replace(tzinfo=None)
         result = await db.execute(
             select(Post.id, Post.image_id).where(
-                and_(
-                    Post.event_at.is_not(None), 
-                    Post.event_at <= deletion_threshold_msk # Исправлено
-                )
+                and_(Post.event_at.is_not(None), Post.event_at <= current_utc)
             )
         )
         rows = result.all()
