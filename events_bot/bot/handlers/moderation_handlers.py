@@ -2,7 +2,6 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 import logfire
-import os
 from events_bot.database.services import (
     ModerationService,
     PostService,
@@ -144,25 +143,20 @@ async def process_moderation_action(callback: CallbackQuery, state: FSMContext, 
             logfire.info(f"Пост {post_id} одобрен и опубликован модератором {callback.from_user.id}")
             
             users_to_notify = await NotificationService.get_users_to_notify(db, post)
-            total_sent = len(users_to_notify)
-
+            logfire.info(f"Отправляем уведомления {len(users_to_notify)} пользователям")
             await NotificationService.send_post_notification(
                 bot=callback.bot, post=post, users=users_to_notify, db=db
             )
-
-            # 📢 Отправка статистики в модерационную группу
-            moderation_group_id = os.getenv("MODERATION_GROUP_ID")
-            if moderation_group_id and total_sent > 0:
-                try:
-                    stats_message = f"✅ Пост ID {post_id} опубликован\n📬 Уведомления отправлены <b>{total_sent}</b> пользователям"
-                    await callback.bot.send_message(
-                        chat_id=moderation_group_id,
-                        text=stats_message,
-                        parse_mode="HTML"
-                    )
-                except Exception as e:
-                    logfire.error(f"Не удалось отправить статистику в модерационную группу: {e}")
-
+            
+            # Отправляем сообщение с информацией о количестве уведомленных пользователей
+            try:
+                await callback.bot.send_message(
+                    chat_id=callback.message.chat.id,  # Отправляем в ту же группу модерации
+                    text=f"✅ Пост одобрен и опубликован. Уведомления отправлены {len(users_to_notify)} пользователям."
+                )
+            except Exception as e:
+                logfire.warning(f"Не удалось отправить сообщение о количестве уведомленных: {e}")
+            
             try:
                 await callback.bot.send_message(
                     chat_id=post.author_id,
@@ -172,48 +166,103 @@ async def process_moderation_action(callback: CallbackQuery, state: FSMContext, 
                 logfire.warning(f"Не удалось уведомить автора {post.author_id}: {e}")
 
             await callback.answer("Ваше мероприятие одобрено и опубликовано 🤟😌")
-
         else:
             logfire.error(f"Ошибка при одобрении поста {post_id}")
             await callback.answer("❌ Ошибка при одобрении поста")
 
     elif action == "reject":
-        await state.update_data(pending_post_id=post_id, pending_action="reject")
+        # Сохраняем ID оригинального сообщения для последующего удаления
+        await state.update_data(
+            pending_post_id=post_id, 
+            pending_action="reject",
+            original_message_id=callback.message.message_id,
+            original_message_chat_id=callback.message.chat.id
+        )
         await state.set_state(ModerationStates.waiting_for_comment)
-        
-        # ✅ РЕДАКТИРУЕМ ПОДПИСЬ, А НЕ ТЕКСТ
-        try:
-            await callback.message.edit_caption(
-                caption="❌ Укажите причину отклонения (комментарий для автора):",
-                reply_markup=None  # можно убрать клавиатуру
-            )
-        except Exception as e:
-            logfire.error(f"Ошибка редактирования подписи: {e}")
-            await callback.answer("Не удалось изменить сообщение", show_alert=True)
-            return
-        
+        await callback.message.edit_text("❌ Укажите причину отклонения (комментарий для автора):")
         await callback.answer()
+        return  # Выходим, чтобы не удалять сообщение сразу
 
     elif action == "changes":
-        await state.update_data(pending_post_id=post_id, pending_action="changes")
+        # Сохраняем ID оригинального сообщения для последующего удаления
+        await state.update_data(
+            pending_post_id=post_id, 
+            pending_action="changes",
+            original_message_id=callback.message.message_id,
+            original_message_chat_id=callback.message.chat.id
+        )
         await state.set_state(ModerationStates.waiting_for_comment)
-        
-        # ✅ РЕДАКТИРУЕМ ПОДПИСЬ
-        try:
-            await callback.message.edit_caption(
-                caption="📝 Введите комментарий для автора (что исправить):",
-                reply_markup=None
-            )
-        except Exception as e:
-            logfire.error(f"Ошибка редактирования подписи: {e}")
-            await callback.answer("Не удалось изменить сообщение", show_alert=True)
-            return
-        
+        await callback.message.edit_text("📝 Введите комментарий для автора (что исправить):")
         await callback.answer()
+        return  # Выходим, чтобы не удалять сообщение сразу
 
-    # ✅ Удаляем сообщение только после approve
-    if action == "approve":
+    # Удаляем сообщение только для approve
+    try:
+        await callback.message.delete()
+    except Exception as e:
+        logfire.warning(f"Не удалось удалить сообщение модерации: {e}")
+
+
+@router.message(ModerationStates.waiting_for_comment)
+async def receive_moderator_comment(message: Message, state: FSMContext, db):
+    """Обработка комментария от модератора"""
+    data = await state.get_data()
+    post_id = data.get("pending_post_id")
+    pending_action = data.get("pending_action", "changes")
+    comment = message.text.strip()
+    
+    if not post_id:
+        await message.answer("Не удалось определить пост. Попробуйте снова.")
+        await state.clear()
+        return
+
+    if pending_action == "reject":
+        post = await PostService.reject_post(db, post_id, message.from_user.id, comment)
+        if post:
+            await message.answer("❌ Пост отклонён. Комментарий отправлен автору.")
+            try:
+                await message.bot.send_message(
+                    chat_id=post.author_id,
+                    text=f"Ваше мероприятие «{post.title}» отклонено. Пожалуйста, создайте его заново с учетом указанного комментария 🥲\n\n"
+                         f"<b>Комментарий модератора:</b> {comment}",
+                    parse_mode="HTML"
+                )
+            except Exception as e:
+                logfire.error(f"Не удалось отправить сообщение автору {post.author_id}: {e}")
+        else:
+            await message.answer("❌ Ошибка при отклонении поста")
+    else:  # changes
+        post = await PostService.request_changes(
+            db, post_id, message.from_user.id, comment
+        )
+        if post:
+            await message.answer("📝 Запрошены изменения. Комментарий отправлен автору.")
+            try:
+                await message.bot.send_message(
+                    chat_id=post.author_id,
+                    text=f"Ваше мероприятие «{post.title}» требует изменений. Пожалуйста, создайте его заново с учетом указанного комментария ✍️🧐\n\n"
+                         f"<b>Комментарий модератора:</b> {comment}",
+                    parse_mode="HTML"
+                )
+            except Exception as e:
+                logfire.error(f"Не удалось отправить сообщение автору {post.author_id}: {e}")
+        else:
+            await message.answer("❌ Ошибка при запросе изменений")
+    
+    # Удаляем оригинальное сообщение модерации
+    original_message_id = data.get("original_message_id")
+    original_message_chat_id = data.get("original_message_chat_id")
+    
+    if original_message_id and original_message_chat_id:
         try:
-            await callback.message.delete()
+            await message.bot.delete_message(chat_id=original_message_chat_id, message_id=original_message_id)
         except Exception as e:
-            logfire.warning(f"Не удалось удалить сообщение модерации: {e}")
+            logfire.warning(f"Не удалось удалить оригинальное сообщение модерации: {e}")
+    
+    # Удаляем сообщение с комментарием модератора
+    try:
+        await message.delete()
+    except Exception as e:
+        logfire.warning(f"Не удалось удалить сообщение с комментарием: {e}")
+    
+    await state.clear()
