@@ -13,10 +13,13 @@ def get_category_selection_keyboard(
 
     builder = InlineKeyboardBuilder()
 
+    # Сортируем категории по ID в порядке возрастания
+    sorted_categories = sorted(categories, key=lambda cat: cat.id)
+
     # Используем разные префиксы для разных контекстов
     prefix = "post_category_" if for_post else "category_"
 
-    for category in categories:
+    for category in sorted_categories:
         is_selected = category.id in selected_ids
         checkbox = "⭐️" if is_selected else "▫️"
         display_name = getattr(category, "display_name", None) or category.name
