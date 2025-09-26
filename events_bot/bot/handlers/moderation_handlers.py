@@ -142,11 +142,28 @@ async def process_moderation_action(callback: CallbackQuery, state: FSMContext, 
             await db.refresh(post, attribute_names=["author", "categories", "cities"])
             logfire.info(f"Пост {post_id} одобрен и опубликован модератором {callback.from_user.id}")
             
+            # Получаем пользователей для уведомления
             users_to_notify = await NotificationService.get_users_to_notify(db, post)
-            logfire.info(f"Отправляем уведомления {len(users_to_notify)} пользователям")
+            total_sent = len(users_to_notify)
+
+            # Отправляем уведомления
             await NotificationService.send_post_notification(
                 bot=callback.bot, post=post, users=users_to_notify, db=db
             )
+
+            # 📢 ОТПРАВКА СТАТИСТИКИ В МОДЕРАЦИОННУЮ ГРУППУ
+            moderation_group_id = os.getenv("MODERATION_GROUP_ID")
+            if moderation_group_id and total_sent > 0:
+                try:
+                    stats_message = f"✅ Пост ID {post_id} опубликован\n📬 Уведомления отправлены <b>{total_sent}</b> пользователям"
+                    await callback.bot.send_message(
+                        chat_id=moderation_group_id,
+                        text=stats_message,
+                        parse_mode="HTML"
+                    )
+                except Exception as e:
+                    logfire.error(f"Не удалось отправить статистику в модерационную группу: {e}")
+
             try:
                 await callback.bot.send_message(
                     chat_id=post.author_id,
@@ -175,7 +192,7 @@ async def process_moderation_action(callback: CallbackQuery, state: FSMContext, 
         await callback.answer()
         return  # Выходим, чтобы не удалять сообщение сразу
 
-    # ✅ ИСПРАВЛЕНИЕ: Удаляем сообщение только для approve
+    # ✅ Удаляем сообщение только после approve
     try:
         await callback.message.delete()
     except Exception as e:
@@ -228,19 +245,7 @@ async def receive_moderator_comment(message: Message, state: FSMContext, db):
         else:
             await message.answer("❌ Ошибка при запросе изменений")
     
-    # ✅ ИСПРАВЛЕНИЕ: Удаляем оригинальное сообщение модерации после обработки комментария
-    # Получаем и удаляем оригинальное сообщение из состояния
-    original_message_id = data.get("original_message_id")
-    if original_message_id:
-        try:
-            # Если у нас есть ID оригинального сообщения, удаляем его
-            # Но в Telegram Bot API мы не можем напрямую удалить сообщение по ID
-            # Поэтому сохраняем ссылку на сообщение через reply_to_message
-            pass
-        except Exception as e:
-            logfire.warning(f"Не удалось удалить оригинальное сообщение модерации: {e}")
-    
-    # Удаляем сообщение с комментарием модератора
+    # Удаляем сообщение с комментарием
     try:
         await message.delete()
     except Exception as e:
