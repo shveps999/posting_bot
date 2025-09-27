@@ -21,7 +21,7 @@ import random
 router = Router()
 
 # Максимальная длина описания поста (ограничение Telegram для caption)
-MAX_CONTENT_LENGTH = 1000
+MAX_CONTENT_LENGTH = 800
 
 def register_post_handlers(dp: Router):
     """Регистрация обработчиков постов"""
