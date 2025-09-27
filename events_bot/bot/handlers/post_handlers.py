@@ -20,6 +20,8 @@ import random
 
 router = Router()
 
+# Максимальная длина описания поста (ограничение Telegram для caption)
+MAX_CONTENT_LENGTH = 1000
 
 def register_post_handlers(dp: Router):
     """Регистрация обработчиков постов"""
@@ -241,7 +243,7 @@ async def process_post_title(message: Message, state: FSMContext, db):
     logfire.info(f"Получен заголовок поста от пользователя {message.from_user.id}: {message.text}")
 
     if len(message.text) > 100:
-        await message.answer("× Заголовок слишком длинный. Максимум 100 символов.")
+        await message.answer("× Заголовок слишком длинный. Максимум 100 символов. Пожалуйста, сократите его и отправьте повторно")
         return
 
     await state.update_data(title=message.text)
@@ -254,11 +256,14 @@ async def process_post_title(message: Message, state: FSMContext, db):
 @router.message(PostStates.waiting_for_content)
 async def process_post_content(message: Message, state: FSMContext, db):
     """Обработка содержания поста"""
-    if len(message.text) > 2000:
-        await message.answer("× Описание слишком длинное. Максимум 2000 символов.")
+    content = message.text
+    
+    # Проверка длины описания
+    if len(content) > MAX_CONTENT_LENGTH:
+        await message.answer(f"× Описание слишком длинное. Максимум {MAX_CONTENT_LENGTH} символов. Пожалуйста, сократите его и отправьте повторно")
         return
 
-    await state.update_data(content=message.text)
+    await state.update_data(content=content)
     await message.answer(
         "🔗 Введите ссылку на сайт, канал или сообщество мероприятия (или контакты организатора в формате https://).\n\nЭта ссылка будет прикреплена к вашему анонсу:"
     )
