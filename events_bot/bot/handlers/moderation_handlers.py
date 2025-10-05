@@ -179,7 +179,16 @@ async def process_moderation_action(callback: CallbackQuery, state: FSMContext, 
             original_message_chat_id=callback.message.chat.id
         )
         await state.set_state(ModerationStates.waiting_for_comment)
-        await callback.message.edit_text("❌ Укажите причину отклонения (комментарий для автора):")
+        
+        # Проверяем, можно ли редактировать сообщение
+        if callback.message.text or callback.message.caption:
+            try:
+                await callback.message.edit_text("❌ Укажите причину отклонения (комментарий для автора):")
+            except Exception:
+                await callback.message.answer("❌ Укажите причину отклонения (комментарий для автора):")
+        else:
+            await callback.message.answer("❌ Укажите причину отклонения (комментарий для автора):")
+        
         await callback.answer()
         return  # Выходим, чтобы не удалять сообщение сразу
 
@@ -192,7 +201,16 @@ async def process_moderation_action(callback: CallbackQuery, state: FSMContext, 
             original_message_chat_id=callback.message.chat.id
         )
         await state.set_state(ModerationStates.waiting_for_comment)
-        await callback.message.edit_text("📝 Введите комментарий для автора (что исправить):")
+        
+        # Проверяем, можно ли редактировать сообщение
+        if callback.message.text or callback.message.caption:
+            try:
+                await callback.message.edit_text("📝 Введите комментарий для автора (что исправить):")
+            except Exception:
+                await callback.message.answer("📝 Введите комментарий для автора (что исправить):")
+        else:
+            await callback.message.answer("📝 Введите комментарий для автора (что исправить):")
+        
         await callback.answer()
         return  # Выходим, чтобы не удалять сообщение сразу
 
